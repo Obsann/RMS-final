@@ -1,0 +1,427 @@
+const logger = require('../config/logger');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const fs = require("fs");
+const User = require("../models/authmodel.js");
+
+/**
+ * Register a new user
+ */
+const register = async (req, res) => {
+  try {
+    const { username, email, password, phone, unit } = req.body;
+
+    // SECURITY: Role is NOT accepted from request body.
+    // All new registrations are forced to 'resident'.
+    // Admins/employees can only be created by existing admins via the user management API.
+    const role = 'resident';
+
+    // Validate required fields
+    if (!username || !email || !password) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Username, email, and password are required"
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Please enter a valid email address"
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Password must be at least 6 characters"
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { username }]
+    });
+
+    if (existingUser) {
+      if (existingUser.email === email.toLowerCase()) {
+        return res.status(409).json({
+          error: "Conflict",
+          message: "User with this email already exists"
+        });
+      }
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Username is already taken"
+      });
+    }
+
+    // All new registrations start as pending residents
+    const user = await User.create({
+      role,
+      username,
+      email: email.toLowerCase(),
+      password: password, // The pre-save hook in authmodel will hash this
+      phone,
+      unit,
+      status: 'pending'
+    });
+
+    res.status(201).json({
+      message: "Registration submitted successfully. Awaiting admin approval",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (err) {
+    logger.error("Register error:", err);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    // Handle mongoose validation errors
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({
+        error: "Validation Error",
+        message: messages.join(', ')
+      });
+    }
+
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Login user
+ */
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Email and password are required"
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Invalid email or password"
+      });
+    }
+
+    // Check user status BEFORE password verification (prevents timing attacks)
+    if (user.status === 'pending') {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Your account is awaiting admin approval"
+      });
+    }
+
+    if (user.status === 'rejected') {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Your account registration was rejected. Please contact support."
+      });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Invalid email or password"
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        unit: user.unit
+      }
+    });
+  } catch (err) {
+    logger.error("Login error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Check/verify user - requires authentication
+ */
+const checkUser = async (req, res) => {
+  try {
+    // req.user is populated by auth middleware
+    const { id } = req.params;
+    const requestingUserId = req.user.id;
+    const isRequestingOwnProfile = !id || id === requestingUserId;
+    const targetUserId = id || requestingUserId;
+
+    // Authorization check: User can only view their own profile unless they are an admin
+    if (!isRequestingOwnProfile && req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You can only view your own profile"
+      });
+    }
+
+    const user = await User.findById(targetUserId).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "User not found"
+      });
+    }
+
+    res.json({
+      message: "Valid user",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        unit: user.unit,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
+        sex: user.sex,
+        nationality: user.nationality,
+        address: user.address,
+        profilePhoto: user.profilePhoto,
+        emergencyContact: user.emergencyContact,
+        digitalId: user.digitalId,
+        dependents: user.dependents
+      }
+    });
+  } catch (err) {
+    logger.error("CheckUser error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Update user status (admin only)
+ */
+const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Invalid status. Must be 'pending', 'approved', or 'rejected'"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "User not found"
+      });
+    }
+
+    res.json({
+      message: `User status updated to ${status}`,
+      user
+    });
+  } catch (err) {
+    logger.error("UpdateUserStatus error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Change password
+ */
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Current password and new password are required"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "New password must be at least 6 characters"
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "User not found"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Current password is incorrect"
+      });
+    }
+
+    user.password = newPassword; // Setup for the pre-save hook
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    logger.error("ChangePassword error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Request password reset - generates token
+ */
+const crypto = require('crypto');
+
+const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Email is required"
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Always return success message to prevent email enumeration
+    if (!user) {
+      return res.json({
+        message: "If an account with that email exists, a reset token has been generated"
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = await bcrypt.hash(resetToken, 10);
+
+    // Store hashed token with 1-hour expiry
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    // In a production system, this token would be sent via email.
+    // For now, we return it in the response for development/demo purposes.
+    res.json({
+      message: "If an account with that email exists, a reset token has been generated",
+      // DEV ONLY: Remove the token from response in production
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    });
+  } catch (err) {
+    logger.error("RequestPasswordReset error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+/**
+ * Reset password with token
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Email, token, and new password are required"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "New password must be at least 6 characters"
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user || !user.resetPasswordToken) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Invalid or expired reset token"
+      });
+    }
+
+    // Verify token against stored hash
+    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValid) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Invalid or expired reset token"
+      });
+    }
+
+    // Update password and clear reset token
+    user.password = newPassword; // Setup for the pre-save hook
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    logger.error("ResetPassword error:", err);
+    res.status(500).json({ error: "Server Error", message: err.message });
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  checkUser,
+  updateUserStatus,
+  changePassword,
+  requestPasswordReset,
+  resetPassword
+};
