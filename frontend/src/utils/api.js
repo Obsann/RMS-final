@@ -130,6 +130,10 @@ export function deleteRequest(id) {
     return api(`/requests/${id}`, { method: 'DELETE' });
 }
 
+export function escalateRequest(id, note) {
+    return api(`/requests/${id}/escalate`, { method: 'POST', body: JSON.stringify({ note }) });
+}
+
 // ── Jobs ────────────────────────────────────────────────────────────────────
 
 export const getJobs = async (query = '') => {
@@ -168,6 +172,10 @@ export function dismissNotification(id) {
 
 export function sendAnnouncement(data) {
     return api('/notifications/announce', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function sendDirectMessage(userId, data) {
+    return api('/notifications/direct', { method: 'POST', body: JSON.stringify({ userId, ...data }) });
 }
 
 // ── Digital ID ──────────────────────────────────────────────────────────────
@@ -212,8 +220,8 @@ export function updateHousehold(id, data) {
 
 // ── Reports ─────────────────────────────────────────────────────────────────
 
-export function getReports(params = '') {
-    return api(`/reports${params ? '?' + params : ''}`);
+export function getReports(path = '') {
+    return api(`/reports${path}`);
 }
 
 // ── Audit Logs ──────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 /**
  * Seed script — populates the database with example data for all roles.
+ * Employees are white-collar administrative/service staff in an RMS platform.
  * Run: npm run seed
  */
 
@@ -33,99 +34,102 @@ const seed = async () => {
         ]);
         console.log('🗑️  Cleared existing data');
 
-        // ── Hash password (shared) ─────────────────────────────────
-        const hashedPassword = await bcrypt.hash('password123', 12);
+        // ── Shared password ───────────────────────────────────────────
+        const plainPassword = 'password123';
 
-        // ── Create Users ───────────────────────────────────────────
+        // ── Create Users ──────────────────────────────────────────────
         const usersData = [
-            // Admin
+            // ── Admin ──
             {
                 username: 'obsan.habtamu',
                 email: 'obsan@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 911 000 001',
                 role: 'admin',
                 status: 'approved',
                 unit: '',
                 jobCategory: '',
             },
-            // Special Employees
+
+            // ── Special Employees (Senior administrative staff) ──
             {
                 username: 'samuel.tolasa',
                 email: 'samuel.tolasa@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 911 000 010',
                 role: 'special-employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Management',
+                jobCategory: 'Operations Management',
             },
             {
                 username: 'temesgen.alemu',
                 email: 'temesgen.a@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 911 000 011',
                 role: 'special-employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Management',
+                jobCategory: 'Resident Affairs',
             },
-            // Employees
+
+            // ── Employees (White-collar RMS administrative roles) ──
             {
-                username: 'samuel.fayisa',
-                email: 'samuel.f@rms.com',
-                password: hashedPassword,
+                username: 'mekdes.girma',
+                email: 'mekdes.g@rms.com',
+                password: plainPassword,
                 phone: '+251 911 111 001',
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Plumbing',
+                jobCategory: 'Resident Registration',   // handles new resident onboarding & document intake
             },
             {
-                username: 'tesfaye.alemu',
-                email: 'tesfaye.a@rms.com',
-                password: hashedPassword,
+                username: 'yonas.tesfaye',
+                email: 'yonas.t@rms.com',
+                password: plainPassword,
                 phone: '+251 911 111 002',
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Electrical',
+                jobCategory: 'Complaint Processing',    // receives, logs, and routes complaints
             },
             {
-                username: 'biruk.woldemariam',
-                email: 'biruk.w@rms.com',
-                password: hashedPassword,
+                username: 'selamawit.bekele',
+                email: 'selamawit.b@rms.com',
+                password: plainPassword,
                 phone: '+251 911 111 003',
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'General Maintenance',
+                jobCategory: 'Document & Records',      // manages certificates, letters, ID records
             },
             {
-                username: 'mekonnen.desta',
-                email: 'mekonnen.d@rms.com',
-                password: hashedPassword,
+                username: 'nahom.getachew',
+                email: 'nahom.g@rms.com',
+                password: plainPassword,
                 phone: '+251 911 111 004',
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Carpentry',
+                jobCategory: 'Security Coordination',   // coordinates security patrols & incident reports
             },
             {
-                username: 'hana.worku',
-                email: 'hana.w@rms.com',
-                password: hashedPassword,
+                username: 'fikirte.haile',
+                email: 'fikirte.h@rms.com',
+                password: plainPassword,
                 phone: '+251 911 111 005',
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Cleaning',
+                jobCategory: 'Community Affairs',       // community announcements, welfare tasks
             },
-            // Residents
+
+            // ── Residents ──
             {
                 username: 'abebe.kebede',
                 email: 'abebe.k@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 911 234 567',
                 role: 'resident',
                 status: 'approved',
@@ -138,7 +142,7 @@ const seed = async () => {
             {
                 username: 'fatima.mohammed',
                 email: 'fatima.m@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 922 345 678',
                 role: 'resident',
                 status: 'approved',
@@ -150,7 +154,7 @@ const seed = async () => {
             {
                 username: 'dawit.tadesse',
                 email: 'dawit.t@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 933 456 789',
                 role: 'resident',
                 status: 'approved',
@@ -164,7 +168,7 @@ const seed = async () => {
             {
                 username: 'tigist.haile',
                 email: 'tigist.h@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 944 567 890',
                 role: 'resident',
                 status: 'approved',
@@ -173,7 +177,7 @@ const seed = async () => {
             {
                 username: 'ramadan.oumer',
                 email: 'ramadan.o@rms.com',
-                password: hashedPassword,
+                password: plainPassword,
                 phone: '+251 955 678 901',
                 role: 'resident',
                 status: 'approved',
@@ -190,143 +194,221 @@ const seed = async () => {
 
         // Build lookup map
         const u = {};
-        createdUsers.forEach((user) => {
-            u[user.email] = user;
-        });
+        createdUsers.forEach((user) => { u[user.email] = user; });
 
-        // ── Seed Requests ──────────────────────────────────────────
+        // ── Seed Requests ─────────────────────────────────────────────
+        // These are white-collar / administrative complaints, not maintenance tasks
         const requests = [
             {
-                type: 'maintenance', resident: u['abebe.k@rms.com']._id, unit: 'A-101',
-                category: 'Plumbing', subject: 'No water supply since morning',
-                description: 'Water has been cut off in Block A since 6 AM. Multiple residents affected.',
+                type: 'complaint',
+                resident: u['abebe.k@rms.com']._id, unit: 'A-101',
+                category: 'Administration',
+                subject: 'Residency certificate not issued after 2 weeks',
+                description: 'Applied for a residency certificate two weeks ago. No response yet. Need it urgently for a bank application.',
                 status: 'pending', priority: 'high',
             },
             {
-                type: 'complaint', resident: u['fatima.m@rms.com']._id, unit: 'B-205',
-                category: 'Electrical', subject: 'Streetlight outage on Block B road',
-                description: 'Three streetlights near Block B have been out for two nights. Safety concern.',
-                status: 'in-progress', priority: 'high',
-                response: { message: 'Assigned to electrician', respondedBy: u['samuel.tolasa@rms.com']._id, respondedAt: new Date() },
-            },
-            {
-                type: 'complaint', resident: u['dawit.t@rms.com']._id, unit: 'C-312',
-                category: 'General', subject: 'Loud construction noise during rest hours',
-                description: 'Construction work continues past 10 PM, disturbing residents.',
-                status: 'pending', priority: 'medium',
-            },
-            {
-                type: 'maintenance', resident: u['tigist.h@rms.com']._id, unit: 'A-204',
-                category: 'Plumbing', subject: 'Sewage overflow near Block A entrance',
-                description: 'Sewage from the main drain is overflowing. Health hazard.',
-                status: 'completed', priority: 'high', resolvedAt: new Date(),
-                response: { message: 'Drain cleared and sanitized', respondedBy: u['samuel.f@rms.com']._id, respondedAt: new Date() },
-            },
-            {
-                type: 'complaint', resident: u['ramadan.o@rms.com']._id, unit: 'B-108',
-                category: 'General', subject: 'Garbage not collected for 4 days',
-                description: 'Waste collection truck has not visited Block B for four days.',
-                status: 'pending', priority: 'medium',
-            },
-            {
-                type: 'maintenance', resident: u['abebe.k@rms.com']._id, unit: 'A-101',
-                category: 'Security', subject: 'Suspicious activity near parking area',
-                description: 'Unknown individuals seen near Block A parking lot late at night.',
+                type: 'complaint',
+                resident: u['fatima.m@rms.com']._id, unit: 'B-205',
+                category: 'Security',
+                subject: 'Suspicious individuals seen near Block B gate at night',
+                description: 'For the past three nights, unknown individuals have been loitering near the main gate after midnight. Residents are uncomfortable.',
                 status: 'in-progress', priority: 'urgent',
-                response: { message: 'Security patrol increased', respondedBy: u['samuel.tolasa@rms.com']._id, respondedAt: new Date() },
+                isEscalated: true,
+                escalatedBy: u['yonas.t@rms.com']._id,
+                escalatedAt: new Date(),
+                escalationNote: 'Admin — this is the second report from Block B residents this week. Requires police coordination.',
+                response: { message: 'Security staff notified, reviewing CCTV footage', respondedBy: u['samuel.tolasa@rms.com']._id, respondedAt: new Date() },
             },
             {
-                type: 'certificate', resident: u['fatima.m@rms.com']._id, unit: 'B-205',
-                category: 'Administrative', subject: 'Address confirmation letter needed',
-                description: 'Need official address confirmation letter for bank account opening.',
+                type: 'complaint',
+                resident: u['dawit.t@rms.com']._id, unit: 'C-312',
+                category: 'Administration',
+                subject: 'Household registration data is incorrect in the system',
+                description: 'My household record still shows an old address from the previous unit. Needs correction before I can process my ID renewal.',
+                status: 'pending', priority: 'medium',
+            },
+            {
+                type: 'certificate',
+                resident: u['tigist.h@rms.com']._id, unit: 'A-204',
+                category: 'Administrative',
+                subject: 'Birth registration letter for child',
+                description: 'Need an official letter confirming child residency for birth certificate registration at the sub-city office.',
+                status: 'completed', priority: 'medium',
+                resolvedAt: new Date(),
+                response: { message: 'Letter prepared and ready for collection at the office', respondedBy: u['selamawit.b@rms.com']._id, respondedAt: new Date() },
+            },
+            {
+                type: 'complaint',
+                resident: u['ramadan.o@rms.com']._id, unit: 'B-108',
+                category: 'Community',
+                subject: 'No announcement about upcoming community meeting',
+                description: 'Heard from neighbours that a community meeting was held last week. We were never notified. Requesting better communication.',
                 status: 'pending', priority: 'low',
+            },
+            {
+                type: 'complaint',
+                resident: u['abebe.k@rms.com']._id, unit: 'A-101',
+                category: 'Security',
+                subject: 'Unregistered vehicle parked in resident zone for 5 days',
+                description: 'An unregistered vehicle has been occupying a resident parking spot for 5 days. Not responding to notices left on windshield.',
+                status: 'in-progress', priority: 'high',
+                isEscalated: true,
+                escalatedBy: u['nahom.g@rms.com']._id,
+                escalatedAt: new Date(),
+                escalationNote: 'Admin — vehicle plates are not in our registry. Possible unauthorized access.',
+                response: { message: 'Parking incident logged, vehicle details sent to traffic authority', respondedBy: u['samuel.tolasa@rms.com']._id, respondedAt: new Date() },
+            },
+            {
+                type: 'certificate',
+                resident: u['fatima.m@rms.com']._id, unit: 'B-205',
+                category: 'Administrative',
+                subject: 'Address confirmation letter for passport application',
+                description: 'Need an official address confirmation letter to submit with passport renewal application.',
+                status: 'pending', priority: 'medium',
             },
         ];
 
         const createdRequests = await Request.create(requests);
-        console.log(`📋 Created ${createdRequests.length} requests/complaints`);
+        console.log(`📋 Created ${createdRequests.length} requests`);
 
-        // ── Seed Jobs ──────────────────────────────────────────────
+        // ── Seed Jobs ─────────────────────────────────────────────────
+        // Jobs are white-collar administrative/coordination tasks
         const jobs = [
             {
-                title: 'Fix water main – Block A', description: 'Diagnose and repair water supply issue affecting all of Block A.',
-                category: 'Plumbing', priority: 'high', status: 'assigned',
-                unit: 'A-101', location: 'Block A main pipe',
+                title: 'Process residency certificate — Abebe Kebede',
+                description: 'Verify application documents, issue official residency certificate for Unit A-101. Required for bank account opening.',
+                category: 'Document & Records',
+                priority: 'high', status: 'assigned',
+                unit: 'A-101',
                 sourceRequest: createdRequests[0]._id,
-                assignedTo: u['samuel.f@rms.com']._id, assignedBy: u['samuel.tolasa@rms.com']._id,
-                assignedAt: new Date(), dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                assignedTo: u['selamawit.b@rms.com']._id,
+                assignedBy: u['samuel.tolasa@rms.com']._id,
+                assignedAt: new Date(Date.now() - 49 * 60 * 60 * 1000), // over 48h ago → overdue
+                dueDate: new Date(Date.now() - 2 * 60 * 60 * 1000),     // past due
                 createdBy: u['samuel.tolasa@rms.com']._id,
             },
             {
-                title: 'Repair streetlights – Block B road', description: 'Replace bulbs on three broken streetlights.',
-                category: 'Electrical', priority: 'high', status: 'in-progress',
-                unit: 'B-205', location: 'Block B main road',
+                title: 'Security incident review — Block B gate',
+                description: 'Review CCTV footage, interview Block B security guard, compile incident report for admin review.',
+                category: 'Security Coordination',
+                priority: 'urgent', status: 'in-progress',
+                unit: 'B-205',
                 sourceRequest: createdRequests[1]._id,
-                assignedTo: u['tesfaye.a@rms.com']._id, assignedBy: u['samuel.tolasa@rms.com']._id,
-                assignedAt: new Date(), dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
-                createdBy: u['samuel.tolasa@rms.com']._id,
-            },
-            {
-                title: 'Security patrol – Block A parking', description: 'Increase night patrol near Block A parking area.',
-                category: 'Security', priority: 'urgent', status: 'assigned',
-                unit: 'A-101', location: 'Block A parking lot',
-                sourceRequest: createdRequests[5]._id,
-                assignedTo: u['biruk.w@rms.com']._id, assignedBy: u['temesgen.a@rms.com']._id,
-                assignedAt: new Date(), dueDate: new Date(Date.now() + 12 * 60 * 60 * 1000),
+                assignedTo: u['nahom.g@rms.com']._id,
+                assignedBy: u['temesgen.a@rms.com']._id,
+                assignedAt: new Date(),
+                dueDate: new Date(Date.now() + 12 * 60 * 60 * 1000),
                 createdBy: u['temesgen.a@rms.com']._id,
             },
             {
-                title: 'General clean-up – Community park', description: 'Weekly deep cleaning of the community park and play area.',
-                category: 'Cleaning', priority: 'medium', status: 'completed',
-                location: 'Community park',
-                assignedTo: u['hana.w@rms.com']._id, assignedBy: u['temesgen.a@rms.com']._id,
+                title: 'Correct household record — Dawit Tadesse (C-312)',
+                description: 'Update household database record with correct unit and address information. Verify supporting documents before saving.',
+                category: 'Resident Registration',
+                priority: 'medium', status: 'assigned',
+                unit: 'C-312',
+                sourceRequest: createdRequests[2]._id,
+                assignedTo: u['mekdes.g@rms.com']._id,
+                assignedBy: u['samuel.tolasa@rms.com']._id,
+                assignedAt: new Date(Date.now() - 50 * 60 * 60 * 1000), // over 48h → overdue
+                dueDate: new Date(Date.now() - 5 * 60 * 60 * 1000),     // past due
+                createdBy: u['samuel.tolasa@rms.com']._id,
+            },
+            {
+                title: 'Prepare birth registration letter — Tigist Haile (A-204)',
+                description: 'Draft and stamp an official residency letter for child birth certificate registration. File copy in records system.',
+                category: 'Document & Records',
+                priority: 'medium', status: 'completed',
+                unit: 'A-204',
+                sourceRequest: createdRequests[3]._id,
+                assignedTo: u['selamawit.b@rms.com']._id,
+                assignedBy: u['temesgen.a@rms.com']._id,
                 assignedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
                 completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-                completionNotes: 'Park cleaned, broken bench flagged for carpentry repair.',
+                completionNotes: 'Letter issued and stamped. Resident notified by phone.',
+                createdBy: u['temesgen.a@rms.com']._id,
+            },
+            {
+                title: 'Unregistered vehicle — investigate & report (A-101 parking)',
+                description: 'Run plate through registry. Contact owner if found. File a parking violation report if unregistered.',
+                category: 'Security Coordination',
+                priority: 'high', status: 'in-progress',
+                unit: 'A-101',
+                sourceRequest: createdRequests[5]._id,
+                assignedTo: u['nahom.g@rms.com']._id,
+                assignedBy: u['samuel.tolasa@rms.com']._id,
+                assignedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                createdBy: u['samuel.tolasa@rms.com']._id,
+            },
+            {
+                title: 'Draft & send community announcement',
+                description: 'Prepare an official notice about the upcoming community meeting (date, agenda, venue) and distribute to all Block residents.',
+                category: 'Community Affairs',
+                priority: 'low', status: 'assigned',
+                assignedTo: u['fikirte.h@rms.com']._id,
+                assignedBy: u['temesgen.a@rms.com']._id,
+                assignedAt: new Date(),
+                dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
                 createdBy: u['temesgen.a@rms.com']._id,
             },
         ];
 
-        // Link first request to its job
-        await Request.findByIdAndUpdate(createdRequests[0]._id, { job: null }); // will set after
         const createdJobs = await Job.create(jobs);
         await Request.findByIdAndUpdate(createdRequests[0]._id, { job: createdJobs[0]._id });
         await Request.findByIdAndUpdate(createdRequests[1]._id, { job: createdJobs[1]._id });
-        await Request.findByIdAndUpdate(createdRequests[5]._id, { job: createdJobs[2]._id });
-        console.log(`🔧 Created ${createdJobs.length} jobs`);
+        await Request.findByIdAndUpdate(createdRequests[2]._id, { job: createdJobs[2]._id });
+        await Request.findByIdAndUpdate(createdRequests[3]._id, { job: createdJobs[3]._id });
+        await Request.findByIdAndUpdate(createdRequests[5]._id, { job: createdJobs[4]._id });
+        console.log(`📋 Created ${createdJobs.length} jobs`);
 
-        // ── Seed Notifications ─────────────────────────────────────
+        // ── Seed Notifications ────────────────────────────────────────
         const notifications = [
-            // Admin
-            { userId: u['obsan@rms.com']._id, type: 'status_update', title: 'Urgent: Water supply outage – Block A', message: 'Abebe Kebede reported a water supply outage affecting Block A since 6 AM.', readStatus: false },
-            { userId: u['obsan@rms.com']._id, type: 'request_update', title: 'New certificate request from Fatima Mohammed', message: 'Fatima Mohammed (B-205) requested an address confirmation letter.', readStatus: false },
-            { userId: u['obsan@rms.com']._id, type: 'system', title: 'New resident registered', message: 'Ramadan Oumer has registered as a new resident in Unit B-108.', readStatus: true },
-            { userId: u['obsan@rms.com']._id, type: 'job_update', title: 'Job completed: Community park cleanup', message: 'Hana Worku completed the weekly park cleanup. Ready for verification.', readStatus: true },
+            // Admin — only security/escalation alerts
+            { userId: u['obsan@rms.com']._id, type: 'system', title: 'Suspicious individuals reported — Block B gate', message: 'Yonas Tesfaye escalated a security report: unknown individuals are loitering near the Block B main gate nightly. Police coordination may be required.', readStatus: false },
+            { userId: u['obsan@rms.com']._id, type: 'system', title: 'Unregistered vehicle in resident zone — Block A', message: 'Nahom Getachew escalated a parking security incident. Vehicle plates not in system. Possible unauthorized access.', readStatus: false },
+            { userId: u['obsan@rms.com']._id, type: 'account_update', title: 'New resident registered: Ramadan Oumer (B-108)', message: 'Ramadan Oumer has completed registration and is pending approval.', readStatus: true },
 
-            // Special Employee - Samuel Tolasa
-            { userId: u['samuel.tolasa@rms.com']._id, type: 'request_update', title: 'New complaint assigned to you', message: 'Admin assigned you the streetlight outage complaint from Block B.', readStatus: false },
-            { userId: u['samuel.tolasa@rms.com']._id, type: 'job_update', title: 'Job completed: Park cleanup by Hana Worku', message: 'Employee Hana Worku has marked the park cleanup task as completed.', readStatus: true },
-            { userId: u['samuel.tolasa@rms.com']._id, type: 'system', title: '3 requests pending over 48 hours', message: 'There are 3 community requests that have been pending for more than 48 hours.', readStatus: false },
+            // Special Employee — Samuel Tolasa
+            { userId: u['samuel.tolasa@rms.com']._id, type: 'request_update', title: 'Urgent complaint escalated to you', message: 'Yonas Tesfaye routed an urgent security complaint from Block B for your review.', readStatus: false },
+            { userId: u['samuel.tolasa@rms.com']._id, type: 'job_update', title: 'Job completed: Birth registration letter (A-204)', message: 'Selamawit Bekele completed preparing the official letter for Tigist Haile.', readStatus: true },
+            { userId: u['samuel.tolasa@rms.com']._id, type: 'system', title: '2 administrative jobs overdue', message: 'Residency certificate (A-101) and household record correction (C-312) are both past their due dates.', readStatus: false },
 
-            // Employee - Samuel Fayisa
-            { userId: u['samuel.f@rms.com']._id, type: 'job_update', title: 'New task: Fix water main – Block A', message: 'You have been assigned to fix the water main pipe in Block A. High priority.', readStatus: false },
-            { userId: u['samuel.f@rms.com']._id, type: 'system', title: 'Team meeting – Monday 9:00 AM', message: 'Mandatory briefing on Monday at 9 AM.', readStatus: true },
+            // Special Employee — Temesgen Alemu
+            { userId: u['temesgen.a@rms.com']._id, type: 'system', title: 'Resident affairs update', message: '4 new complaints submitted this week across Blocks A, B, and C. Review assignment status.', readStatus: false },
 
-            // Employee - Tesfaye Alemu
-            { userId: u['tesfaye.a@rms.com']._id, type: 'job_update', title: 'New task: Repair streetlights – Block B', message: 'Assigned: repair three broken streetlights on Block B road.', readStatus: false },
+            // Employee — Mekdes Girma (Resident Registration)
+            { userId: u['mekdes.g@rms.com']._id, type: 'job_update', title: 'New task: Correct household record — Dawit Tadesse', message: 'You have been assigned to update the household database record for Unit C-312. Please verify documents and update before the due date.', readStatus: false },
 
-            // Resident - Abebe
-            { userId: u['abebe.k@rms.com']._id, type: 'request_update', title: 'Your request is being processed', message: 'Your water supply issue has been assigned to a plumber.', readStatus: false },
-            { userId: u['abebe.k@rms.com']._id, type: 'status_update', title: 'Security patrol increased', message: 'Your security concern has been addressed. Night patrols increased.', readStatus: true },
+            // Employee — Yonas Tesfaye (Complaint Processing)
+            { userId: u['yonas.t@rms.com']._id, type: 'request_update', title: 'New complaint assigned — Block B security', message: 'A new urgent security complaint has been submitted by Fatima Mohammed (B-205). Process and escalate if necessary.', readStatus: false },
 
-            // Resident - Ramadan
-            { userId: u['ramadan.o@rms.com']._id, type: 'account_update', title: 'Welcome to RMS Kebele', message: 'Your account has been approved. You can now submit requests and manage your profile.', readStatus: false },
+            // Employee — Selamawit Bekele (Document & Records)
+            { userId: u['selamawit.b@rms.com']._id, type: 'job_update', title: 'New task: Process residency certificate — Abebe Kebede', message: 'Assigned to you: issue official residency certificate for Unit A-101. High priority — resident is waiting. Already overdue.', readStatus: false },
+
+            // Employee — Nahom Getachew (Security Coordination)
+            { userId: u['nahom.g@rms.com']._id, type: 'job_update', title: 'New task: Investigate unregistered vehicle — A-101 parking', message: 'Run vehicle plate through registry, contact owner, and file a full parking violation report by end of day.', readStatus: false },
+
+            // Employee — Fikirte Haile (Community Affairs)
+            { userId: u['fikirte.h@rms.com']._id, type: 'job_update', title: 'New task: Community meeting announcement', message: 'Draft and distribute the community meeting notice to all Block residents by Thursday.', readStatus: false },
+
+            // Resident — Abebe
+            { userId: u['abebe.k@rms.com']._id, type: 'request_update', title: 'Your certificate request is being processed', message: 'Your residency certificate application is under review by our document team.', readStatus: false },
+
+            // Resident — Fatima
+            { userId: u['fatima.m@rms.com']._id, type: 'status_update', title: 'Security concern acknowledged', message: 'Your security report about the Block B gate has been escalated. Our team is reviewing CCTV footage.', readStatus: false },
+
+            // Resident — Tigist
+            { userId: u['tigist.h@rms.com']._id, type: 'request_update', title: 'Your letter is ready for collection', message: 'The official residency letter for child birth registration is ready. Please collect it at the RMS office during working hours.', readStatus: false },
+
+            // Resident — Ramadan
+            { userId: u['ramadan.o@rms.com']._id, type: 'account_update', title: 'Welcome to RMS Kebele!', message: 'Your account has been approved. You can now submit requests, view your household profile, and manage your digital ID.', readStatus: false },
         ];
 
         const createdNotifications = await Notification.create(notifications);
         console.log(`🔔 Created ${createdNotifications.length} notifications`);
 
-        // ── Seed Digital IDs ───────────────────────────────────────
+        // ── Seed Digital IDs ──────────────────────────────────────────
         const digitalIds = [
             {
                 user: u['abebe.k@rms.com']._id,
@@ -356,7 +438,7 @@ const seed = async () => {
         const createdDigitalIds = await DigitalId.create(digitalIds);
         console.log(`🆔 Created ${createdDigitalIds.length} digital IDs`);
 
-        // ── Seed Households ────────────────────────────────────────
+        // ── Seed Households ───────────────────────────────────────────
         const households = [
             {
                 houseNo: 'A-101', headOfHousehold: u['abebe.k@rms.com']._id,
@@ -383,25 +465,25 @@ const seed = async () => {
         const createdHouseholds = await Household.create(households);
         console.log(`🏠 Created ${createdHouseholds.length} households`);
 
-        // ── Summary ──────────────────────────────────────────────
+        // ── Summary ───────────────────────────────────────────────────
         console.log('\n════════════════════════════════════════════════════════════');
         console.log('  ✅ Database seeded successfully!');
         console.log('════════════════════════════════════════════════════════════');
         console.log('\n  Login credentials (all passwords: password123):');
         console.log('  ──────────────────────────────────────────────────────────');
         console.log('  Admin:              obsan@rms.com');
-        console.log('  Special Employee:   samuel.tolasa@rms.com');
-        console.log('  Special Employee:   temesgen.a@rms.com');
-        console.log('  Employee:           samuel.f@rms.com    (Plumbing)');
-        console.log('  Employee:           tesfaye.a@rms.com   (Electrical)');
-        console.log('  Employee:           biruk.w@rms.com     (General Maintenance)');
-        console.log('  Employee:           mekonnen.d@rms.com  (Carpentry)');
-        console.log('  Employee:           hana.w@rms.com      (Cleaning)');
-        console.log('  Resident:           abebe.k@rms.com     (A-101)');
-        console.log('  Resident:           fatima.m@rms.com    (B-205)');
-        console.log('  Resident:           dawit.t@rms.com     (C-312)');
-        console.log('  Resident:           tigist.h@rms.com    (A-204)');
-        console.log('  Resident:           ramadan.o@rms.com   (B-108)');
+        console.log('  Special Employee:   samuel.tolasa@rms.com    (Operations Management)');
+        console.log('  Special Employee:   temesgen.a@rms.com       (Resident Affairs)');
+        console.log('  Employee:           mekdes.g@rms.com         (Resident Registration)');
+        console.log('  Employee:           yonas.t@rms.com          (Complaint Processing)');
+        console.log('  Employee:           selamawit.b@rms.com      (Document & Records)');
+        console.log('  Employee:           nahom.g@rms.com          (Security Coordination)');
+        console.log('  Employee:           fikirte.h@rms.com        (Community Affairs)');
+        console.log('  Resident:           abebe.k@rms.com          (A-101)');
+        console.log('  Resident:           fatima.m@rms.com         (B-205)');
+        console.log('  Resident:           dawit.t@rms.com          (C-312)');
+        console.log('  Resident:           tigist.h@rms.com         (A-204)');
+        console.log('  Resident:           ramadan.o@rms.com        (B-108)');
         console.log('════════════════════════════════════════════════════════════\n');
 
         process.exit(0);

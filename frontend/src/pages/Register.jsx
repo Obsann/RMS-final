@@ -18,10 +18,6 @@ const validate = {
     else if (d.username.length < 3) errs.username = 'Username must be at least 3 characters';
     else if (!/^[a-zA-Z0-9._]+$/.test(d.username)) errs.username = 'Only letters, numbers, dots and underscores allowed';
     if (!d.dateOfBirth) errs.dateOfBirth = 'Date of birth is required';
-    else {
-      const age = (new Date() - new Date(d.dateOfBirth)) / (365.25 * 24 * 3600 * 1000);
-      if (age < 16) errs.dateOfBirth = 'You must be at least 16 years old to register';
-    }
     if (!d.gender) errs.gender = 'Please select your gender';
     return errs;
   },
@@ -237,7 +233,6 @@ export default function Register() {
                     <Field label="Date of Birth" error={errors.dateOfBirth} icon={Calendar} required>
                       <input
                         type="date" value={formData.dateOfBirth} onChange={set('dateOfBirth')}
-                        max={new Date(Date.now() - 16 * 365.25 * 24 * 3600000).toISOString().slice(0, 10)}
                         className={inputCls(errors.dateOfBirth)}
                       />
                     </Field>
@@ -247,7 +242,6 @@ export default function Register() {
                         <option value="">Select...</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
-                        <option value="Other">Other / Prefer not to say</option>
                       </select>
                     </Field>
                   </div>

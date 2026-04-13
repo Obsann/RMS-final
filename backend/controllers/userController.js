@@ -102,7 +102,7 @@ const getUserById = async (req, res) => {
     const { id } = req.params;
 
     // Users can only get their own profile unless they're admin
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    if (req.user.role !== 'admin' && req.user.id.toString() !== id.toString()) {
       return res.status(403).json({
         error: "Forbidden",
         message: "You can only view your own profile"
@@ -128,7 +128,7 @@ const updateUser = async (req, res) => {
     const { id } = req.params;
 
     // Users can only update their own profile unless they're admin
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    if (req.user.role !== 'admin' && req.user.id.toString() !== id.toString()) {
       return res.status(403).json({
         error: "Forbidden",
         message: "You can only update your own profile"
@@ -136,8 +136,17 @@ const updateUser = async (req, res) => {
     }
 
     // Whitelist allowed fields based on role
-    const userAllowedFields = ['username', 'phone', 'unit', 'address', 'profilePhoto', 'dateOfBirth', 'sex', 'nationality', 'emergencyContact'];
-    const adminAllowedFields = [...userAllowedFields, 'role', 'status', 'jobCategory', 'permissions'];
+    const userAllowedFields = [
+      'username', 'phone', 'unit', 'address', 'profilePhoto',
+      'dateOfBirth', 'sex', 'nationality', 'emergencyContact',
+      'maritalStatus', 'educationLevel', 'fieldOfStudy',
+      'employmentStartDate', 'officeLocation', 'supervisorName',
+      'nationalId', 'employeeId',
+    ];
+    const adminAllowedFields = [
+      ...userAllowedFields,
+      'role', 'status', 'jobCategory', 'permissions', 'adminNote',
+    ];
 
     const allowedFields = req.user.role === 'admin' ? adminAllowedFields : userAllowedFields;
 
@@ -242,7 +251,7 @@ const addDependent = async (req, res) => {
     const { name, relationship, age } = req.body;
 
     // Users can only add dependents to their own profile
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    if (req.user.role !== 'admin' && req.user.id.toString() !== id.toString()) {
       return res.status(403).json({
         error: "Forbidden",
         message: "You can only manage your own dependents"
@@ -282,7 +291,7 @@ const removeDependent = async (req, res) => {
     const { id, dependentId } = req.params;
 
     // Users can only remove dependents from their own profile
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    if (req.user.role !== 'admin' && req.user.id.toString() !== id.toString()) {
       return res.status(403).json({
         error: "Forbidden",
         message: "You can only manage your own dependents"

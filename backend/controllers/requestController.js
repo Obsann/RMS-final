@@ -48,12 +48,20 @@ const createRequest = async (req, res) => {
  */
 const getRequests = async (req, res) => {
     try {
-        const { type, status, page = 1, limit = 20 } = req.query;
+        const { type, status, page = 1, limit = 20, escalatedOnly } = req.query;
 
         const query = {};
 
-        // Non-admins can only see their own requests
-        if (req.user.role !== 'admin' && req.user.role !== 'special-employee') {
+        // Admin only sees escalated requests (forwarded by employees)
+        if (req.user.role === 'admin') {
+            if (escalatedOnly !== 'false') {
+                query.isEscalated = true;
+            }
+        } else if (req.user.role === 'employee' || req.user.role === 'special-employee') {
+            // Employees and special employees see ALL resident requests so they can handle them
+            // No filter by resident — they see everything
+        } else {
+            // Residents only see their own requests
             query.resident = req.user.id;
         }
 
@@ -64,7 +72,8 @@ const getRequests = async (req, res) => {
 
         const [requests, total] = await Promise.all([
             Request.find(query)
-                .populate('resident', 'username email unit')
+                .populate('resident', 'username email unit phone')
+                .populate('escalatedBy', 'username email')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit)),
@@ -236,11 +245,47 @@ const deleteRequest = async (req, res) => {
     }
 };
 
+/**
+ * Escalate request to admin (employee/special-employee)
+ * Marks a request as escalated so it appears on the admin dashboard
+ */
+const escalateRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { note } = req.body;
+
+        const request = await Request.findById(id);
+        if (!request) {
+            return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
+        }
+
+        if (request.isEscalated) {
+            return res.status(400).json({ error: 'Bad Request', message: 'Request is already escalated' });
+        }
+
+        request.isEscalated = true;
+        request.escalatedBy = req.user.id;
+        request.escalatedAt = new Date();
+        request.escalationNote = note || 'Escalated by employee — requires admin attention';
+        await request.save();
+
+        const populated = await Request.findById(id)
+            .populate('resident', 'username email unit')
+            .populate('escalatedBy', 'username email');
+
+        res.json({ message: 'Request escalated to admin', request: populated });
+    } catch (error) {
+        logger.error('EscalateRequest error:', error);
+        res.status(500).json({ error: 'Server Error', message: error.message });
+    }
+};
+
 module.exports = {
     createRequest,
     getRequests,
     getRequestById,
     updateRequestStatus,
     convertToJob,
-    deleteRequest
+    deleteRequest,
+    escalateRequest
 };

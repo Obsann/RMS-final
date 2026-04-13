@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema(
     },
     sex: {
       type: String,
-      enum: ['Male', 'Female', 'Other']
+      enum: ['Male', 'Female']
     },
     nationality: {
       type: String,
@@ -122,7 +122,29 @@ const userSchema = new mongoose.Schema(
     moveInDate: Date,
     // Password reset
     resetPasswordToken: String,
-    resetPasswordExpires: Date
+    resetPasswordExpires: Date,
+
+    // ── Staff / Employee extended profile ──────────────────
+    nationalId: {          // Ethiopian National ID / Kebele ID
+      type: String, trim: true
+    },
+    employeeId: {          // Internal staff badge / registry number
+      type: String, trim: true
+    },
+    maritalStatus: {
+      type: String,
+      enum: ['Single', 'Married', 'Divorced', 'Widowed', 'Other']
+    },
+    educationLevel: {
+      type: String,
+      enum: ['Certificate', 'Diploma', 'Bachelor\'s Degree', 'Master\'s Degree', 'PhD', 'Other']
+    },
+    fieldOfStudy: { type: String, trim: true },
+    employmentStartDate: { type: Date },
+    officeLocation: { type: String, trim: true },
+    supervisorName: { type: String, trim: true },
+    // For admin: system governance notes
+    adminNote: { type: String, trim: true, maxlength: 500 }
   },
   {
     timestamps: true // Adds createdAt and updatedAt automatically

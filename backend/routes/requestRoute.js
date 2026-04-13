@@ -5,7 +5,8 @@ const {
     getRequestById,
     updateRequestStatus,
     convertToJob,
-    deleteRequest
+    deleteRequest,
+    escalateRequest
 } = require('../controllers/requestController');
 const authMiddleware = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
@@ -25,6 +26,9 @@ router.get('/', getRequests);
 
 // Get single request
 router.get('/:id', getRequestById);
+
+// Escalate request to admin (employee/special-employee only)
+router.post('/:id/escalate', employeeAuth, escalateRequest);
 
 // Update request status (admin/employee only)
 router.patch('/:id/status', employeeAuth, updateRequestStatus);

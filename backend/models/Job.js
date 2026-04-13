@@ -14,8 +14,7 @@ const jobSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            required: [true, 'Category is required'],
-            enum: ['Plumbing', 'Electrical', 'HVAC', 'General Maintenance', 'Landscaping', 'Cleaning', 'Security', 'Carpentry', 'Other']
+            required: [true, 'Category is required']
         },
         priority: {
             type: String,

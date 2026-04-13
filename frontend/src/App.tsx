@@ -20,6 +20,7 @@ import AdminRequests from './pages/admin/Requests';
 import AdminDigitalID from './pages/admin/DigitalID';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminReports from './pages/admin/Reports';
+import AdminProfile from './pages/admin/Profile';
 
 // Special Employee Pages
 import SpecialEmployeeDashboard from './pages/special-employee/Dashboard';
@@ -29,6 +30,7 @@ import SpecialEmployeeRequests from './pages/special-employee/Requests';
 import SpecialEmployeeDigitalID from './pages/special-employee/DigitalID';
 import SpecialEmployeeNotifications from './pages/special-employee/Notifications';
 import SpecialEmployeeReports from './pages/special-employee/Reports';
+import SpecialEmployeeProfile from './pages/special-employee/Profile';
 
 // Employee Pages
 import EmployeeDashboard from './pages/employee/Dashboard';
@@ -89,6 +91,7 @@ const router = createBrowserRouter([
   { path: '/admin/digital-id', element: <AuthGuard allowedRoles={['admin']}><AdminDigitalID /></AuthGuard> },
   { path: '/admin/notifications', element: <AuthGuard allowedRoles={['admin']}><AdminNotifications /></AuthGuard> },
   { path: '/admin/reports', element: <AuthGuard allowedRoles={['admin']}><AdminReports /></AuthGuard> },
+  { path: '/admin/profile', element: <AuthGuard allowedRoles={['admin']}><AdminProfile /></AuthGuard> },
 
   // Special Employee Routes
   { path: '/special-employee/dashboard', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeDashboard /></AuthGuard> },
@@ -98,6 +101,7 @@ const router = createBrowserRouter([
   { path: '/special-employee/digital-id', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeDigitalID /></AuthGuard> },
   { path: '/special-employee/notifications', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeNotifications /></AuthGuard> },
   { path: '/special-employee/reports', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeReports /></AuthGuard> },
+  { path: '/special-employee/profile', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeProfile /></AuthGuard> },
 
   // Employee Routes
   { path: '/employee/dashboard', element: <AuthGuard allowedRoles={['employee']}><EmployeeDashboard /></AuthGuard> },

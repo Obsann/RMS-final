@@ -199,6 +199,12 @@ export default function AdminDigitalID() {
                               </button>
                             </>
                           )}
+                          {req.status === 'pending' && (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                              <Clock className="w-3 h-3" />
+                              Awaiting employee verification
+                            </span>
+                          )}
                           {req.status === 'approved' && (
                             <button disabled={submitting} onClick={() => handleReject(req)} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-sm font-medium transition-colors" title="Revoke ID">
                               <XCircle className="w-3.5 h-3.5" /> Revoke
@@ -249,7 +255,7 @@ export default function AdminDigitalID() {
                 <h4 className="font-semibold text-gray-900 border-b pb-2">Demographics</h4>
                 <div className="grid grid-cols-2 gap-y-3 text-sm">
                   <div><span className="block text-gray-500 text-xs">Nationality</span><span className="font-medium">{selectedRequest.user?.nationality || '—'}</span></div>
-                  <div><span className="block text-gray-500 text-xs">Sex</span><span className="font-medium">{selectedRequest.user?.sex || '—'}</span></div>
+                  <div><span className="block text-gray-500 text-xs">Gender</span><span className="font-medium">{selectedRequest.user?.sex || '—'}</span></div>
                   <div><span className="block text-gray-500 text-xs">Date of Birth</span><span className="font-medium">{selectedRequest.user?.dateOfBirth ? new Date(selectedRequest.user.dateOfBirth).toLocaleDateString() : '—'}</span></div>
                   <div className="col-span-2"><span className="block text-gray-500 text-xs">Address</span><span className="font-medium">{selectedRequest.user?.address || '—'}</span></div>
                 </div>

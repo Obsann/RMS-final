@@ -32,25 +32,35 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [bellCount, setBellCount] = useState(0);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Fetch real unread notification count from API
+  const [profilePhoto, setProfilePhoto] = useState(null);
+
+  // Fetch real unread notification count + profile photo from API
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       try {
         const token = localStorage.getItem('rms_token');
         if (!token) return;
-        const res = await fetch('/api/notifications?limit=1', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
+
+        const [notifRes, meRes] = await Promise.all([
+          fetch('/api/notifications?limit=1', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        if (notifRes.ok) {
+          const data = await notifRes.json();
           setBellCount(data.unreadCount ?? 0);
+        }
+        if (meRes.ok) {
+          const data = await meRes.json();
+          const photo = (data.user || data)?.profilePhoto;
+          if (photo) setProfilePhoto(`/uploads/${photo.replace(/^.*?uploads\//, '')}`);
         }
       } catch (e) { /* silent */ }
     };
     load();
-    // Refresh every 90 seconds
     const interval = setInterval(load, 90000);
     return () => clearInterval(interval);
   }, [user]);
@@ -123,7 +133,7 @@ export default function DashboardLayout({ children }) {
               <div className="flex items-center gap-2">
                 <Building2 className="w-8 h-8 text-blue-600" />
                 <span className="hidden sm:block text-blue-700">
-                  {t('propertyManagement')}
+                  {t('Resident Management')}
                 </span>
               </div>
             </div>
@@ -164,15 +174,49 @@ export default function DashboardLayout({ children }) {
                 )}
               </button>
 
-              {/* User Info */}
-              <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-gray-200">
-                <div className="text-right">
-                  <p className="text-gray-900">{(user?.username || user?.name || '').replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                  <p className="text-gray-500 capitalize">{user?.role?.replace('-', ' ')}</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white">{((user?.username || user?.name || '').charAt(0) || 'U').toUpperCase()}</span>
-                </div>
+              {/* User Info + Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-3 pl-3 border-l border-gray-200 hover:bg-gray-50 rounded-lg pr-2 py-1 transition-colors"
+                >
+                  <div className="hidden sm:block text-right">
+                    <p className="text-gray-900 text-sm font-medium">{(user?.username || user?.name || '').replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                    <p className="text-gray-500 text-xs capitalize">{user?.role?.replace('-', ' ')}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    {profilePhoto
+                      ? <img src={profilePhoto} alt="avatar" className="w-full h-full object-cover" />
+                      : <span className="text-white font-medium text-sm">{((user?.username || user?.name || '').charAt(0) || 'U').toUpperCase()}</span>
+                    }
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-2 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">{user?.username || user?.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      </div>
+                      <button
+                        onClick={() => { setUserMenuOpen(false); navigate(`/${user?.role}/profile`); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        <Users className="w-4 h-4" /> Profile
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors text-sm"
+                      >
+                        <LogOut className="w-4 h-4" /> {t('logout')}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -214,15 +258,6 @@ export default function DashboardLayout({ children }) {
               );
             })}
           </nav>
-
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors mt-2"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>{t('logout')}</span>
-          </button>
         </div>
       </aside>
 

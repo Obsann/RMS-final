@@ -234,7 +234,7 @@ export default function ResidentDigitalID() {
                         <p className="text-white font-medium">{resident.nationality || 'Ethiopian'}</p>
                       </div>
                       <div>
-                        <p className="text-blue-300 text-xs uppercase tracking-wider">Sex</p>
+                        <p className="text-blue-300 text-xs uppercase tracking-wider">Gender</p>
                         <p className="text-white font-medium">{resident.sex || '—'}</p>
                       </div>
                       <div>

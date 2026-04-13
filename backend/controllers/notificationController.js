@@ -162,11 +162,49 @@ const sendAnnouncement = async (req, res) => {
     }
 };
 
+/**
+ * Send a direct message to a single user (admin only)
+ */
+const sendDirectMessage = async (req, res) => {
+    try {
+        const { userId, title, message } = req.body;
+
+        if (!userId || !title || !message) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'userId, title, and message are required'
+            });
+        }
+
+        const User = require('../models/authmodel');
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'Not Found', message: 'User not found' });
+        }
+
+        const notification = await Notification.create({
+            userId,
+            type: 'announcement',
+            title,
+            message
+        });
+
+        res.status(201).json({
+            message: `Direct message sent to ${user.username}`,
+            notification
+        });
+    } catch (error) {
+        logger.error('SendDirectMessage error:', error);
+        res.status(500).json({ error: 'Server Error', message: error.message });
+    }
+};
+
 module.exports = {
     createNotification,
     getUserNotifications,
     markAsRead,
     markAllRead,
     deleteNotification,
-    sendAnnouncement
+    sendAnnouncement,
+    sendDirectMessage
 };

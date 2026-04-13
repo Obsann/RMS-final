@@ -3,6 +3,45 @@ const Job = require('../models/Job');
 const User = require('../models/authmodel');
 
 /**
+ * Auto-assign a job to the least-loaded employee matching the job's category
+ */
+const autoAssignJob = async (category, excludeId = null) => {
+    try {
+        // Find approved employees/special-employees matching category (case-insensitive)
+        const matchQuery = {
+            role: { $in: ['employee', 'special-employee'] },
+            status: 'approved'
+        };
+
+        if (category) {
+            matchQuery.jobCategory = { $regex: new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&')}$`, 'i') };
+        }
+
+        const employees = await User.find(matchQuery).select('_id username jobCategory');
+
+        if (employees.length === 0) return null;
+
+        // Count active (non-completed, non-cancelled) jobs for each
+        const jobCounts = await Promise.all(
+            employees.map(async (emp) => {
+                const count = await Job.countDocuments({
+                    assignedTo: emp._id,
+                    status: { $in: ['assigned', 'in-progress'] }
+                });
+                return { employee: emp, count };
+            })
+        );
+
+        // Sort by fewest active jobs, pick first
+        jobCounts.sort((a, b) => a.count - b.count);
+        return jobCounts[0].employee;
+    } catch (error) {
+        logger.error('AutoAssignJob error:', error);
+        return null;
+    }
+};
+
+/**
  * Create a new job (admin)
  */
 const createJob = async (req, res) => {
@@ -40,13 +79,28 @@ const createJob = async (req, res) => {
             jobData.assignedBy = req.user.id;
             jobData.assignedAt = new Date();
             jobData.status = 'assigned';
+        } else {
+            // Auto-assign to least-loaded employee matching the category
+            const autoEmployee = await autoAssignJob(category);
+            if (autoEmployee) {
+                jobData.assignedTo = autoEmployee._id;
+                jobData.assignedBy = req.user.id;
+                jobData.assignedAt = new Date();
+                jobData.status = 'assigned';
+            }
         }
 
         const job = await Job.create(jobData);
 
+        // Populate for response
+        const populated = await Job.findById(job._id)
+            .populate('assignedTo', 'username email jobCategory');
+
         res.status(201).json({
-            message: 'Job created successfully',
-            job
+            message: jobData.assignedTo
+                ? `Job created and assigned to ${populated.assignedTo?.username || 'employee'}`
+                : 'Job created (no matching employee found for auto-assignment)',
+            job: populated
         });
     } catch (error) {
         logger.error('CreateJob error:', error);

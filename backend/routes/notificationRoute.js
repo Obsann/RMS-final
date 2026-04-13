@@ -4,7 +4,8 @@ const {
     markAsRead,
     markAllRead,
     deleteNotification,
-    sendAnnouncement
+    sendAnnouncement,
+    sendDirectMessage
 } = require('../controllers/notificationController');
 const authMiddleware = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
@@ -26,7 +27,10 @@ router.patch('/:id/read', markAsRead);
 // Delete a notification
 router.delete('/:id', deleteNotification);
 
-// Send announcement (admin only)
+// Send group announcement (admin only)
 router.post('/announce', adminAuth, sendAnnouncement);
+
+// Send direct message to individual user (admin only)
+router.post('/direct', adminAuth, sendDirectMessage);
 
 module.exports = router;

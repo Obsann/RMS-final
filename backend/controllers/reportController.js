@@ -18,13 +18,19 @@ const getOverview = async (req, res) => {
             pendingUsers,
             approvedUsers,
             totalResidents,
+            approvedResidents,
             totalEmployees,
+            totalSpecialEmployees,
             totalRequests,
             pendingRequests,
+            inProgressRequests,
             completedRequests,
             totalJobs,
             pendingJobs,
+            assignedJobs,
+            inProgressJobs,
             completedJobs,
+            overdueJobs,
             totalDigitalIds,
             approvedDigitalIds,
             totalHouseholds
@@ -33,13 +39,25 @@ const getOverview = async (req, res) => {
             User.countDocuments({ status: 'pending' }),
             User.countDocuments({ status: 'approved' }),
             User.countDocuments({ role: 'resident' }),
-            User.countDocuments({ role: { $in: ['employee', 'special-employee'] } }),
+            User.countDocuments({ role: 'resident', status: 'approved' }),
+            User.countDocuments({ role: 'employee' }),
+            User.countDocuments({ role: 'special-employee' }),
             Request.countDocuments(),
             Request.countDocuments({ status: 'pending' }),
+            Request.countDocuments({ status: 'in-progress' }),
             Request.countDocuments({ status: 'completed' }),
             Job.countDocuments(),
-            Job.countDocuments({ status: { $in: ['pending', 'assigned'] } }),
+            Job.countDocuments({ status: 'pending' }),
+            Job.countDocuments({ status: 'assigned' }),
+            Job.countDocuments({ status: 'in-progress' }),
             Job.countDocuments({ status: 'completed' }),
+            Job.countDocuments({
+                status: { $in: ['assigned', 'in-progress'] },
+                $or: [
+                    { dueDate: { $lt: new Date() } },
+                    { assignedAt: { $lt: new Date(Date.now() - 48 * 60 * 60 * 1000) }, status: 'assigned' }
+                ]
+            }),
             DigitalId.countDocuments(),
             DigitalId.countDocuments({ status: 'approved' }),
             Household.countDocuments()
@@ -51,17 +69,25 @@ const getOverview = async (req, res) => {
                 pending: pendingUsers,
                 approved: approvedUsers,
                 residents: totalResidents,
-                employees: totalEmployees
+                approvedResidents,
+                employees: totalEmployees,
+                specialEmployees: totalSpecialEmployees
             },
             requests: {
                 total: totalRequests,
                 pending: pendingRequests,
-                completed: completedRequests
+                inProgress: inProgressRequests,
+                completed: completedRequests,
+                openIssues: pendingRequests + inProgressRequests
             },
             jobs: {
                 total: totalJobs,
                 pending: pendingJobs,
-                completed: completedJobs
+                assigned: assignedJobs,
+                inProgress: inProgressJobs,
+                completed: completedJobs,
+                overdue: overdueJobs,
+                unfinished: pendingJobs + assignedJobs + inProgressJobs
             },
             digitalIds: {
                 total: totalDigitalIds,

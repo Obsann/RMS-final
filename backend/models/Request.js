@@ -55,6 +55,20 @@ const requestSchema = new mongoose.Schema(
             },
             respondedAt: Date
         },
+        // Escalation (employee → admin)
+        isEscalated: {
+            type: Boolean,
+            default: false
+        },
+        escalatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'kebeleUser'
+        },
+        escalatedAt: Date,
+        escalationNote: {
+            type: String,
+            maxlength: [1000, 'Escalation note cannot exceed 1000 characters']
+        },
         // If converted to a job
         job: {
             type: mongoose.Schema.Types.ObjectId,

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Modal from '../../components/ui/Modal';
-import { Plus, Shield, Edit, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Shield, Edit, Loader2, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUsers, createUser, updateUser, deleteUser } from '../../utils/api';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function AdminSpecialEmployees() {
   const [specialEmployees, setSpecialEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
@@ -16,10 +20,9 @@ export default function AdminSpecialEmployees() {
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    jobCategory: ''
+    username: '', email: '', password: '', phone: '', jobCategory: '',
+    dateOfBirth: '', sex: '', nationality: '', address: '',
+    emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelationship: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,13 +60,21 @@ export default function AdminSpecialEmployees() {
     setSubmitting(true);
     try {
       await createUser({
-        ...formData,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        jobCategory: formData.jobCategory,
         role: 'special-employee',
-        status: 'approved'
+        status: 'approved',
+        address: formData.address || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        sex: formData.sex || undefined,
+        nationality: formData.nationality || undefined,
       });
       toast.success('Special employee added successfully');
       setShowAddModal(false);
-      setFormData({ username: '', email: '', password: '', jobCategory: '' });
+      setFormData({ username: '', email: '', password: '', phone: '', jobCategory: '', dateOfBirth: '', sex: '', nationality: '', address: '', emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelationship: '' });
       fetchEmployees();
     } catch (error) {
       toast.error(error.message || 'Failed to add employee');
@@ -110,6 +121,28 @@ export default function AdminSpecialEmployees() {
     );
   };
 
+  const handleToggleStatus = async (employee) => {
+    const newStatus = employee.status === 'approved' ? 'rejected' : 'approved';
+    try {
+      await updateUser(employee._id, { status: newStatus });
+      toast.success(`Employee ${newStatus === 'approved' ? 'activated' : 'deactivated'}`);
+      fetchEmployees();
+    } catch (error) {
+      toast.error(error.message || 'Failed to update status');
+    }
+  };
+
+  const filtered = specialEmployees.filter(e =>
+    (e.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (e.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (e.jobCategory || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -138,6 +171,14 @@ export default function AdminSpecialEmployees() {
           </div>
         </div>
 
+        {/* Search */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name, email, or role..." className="w-full pl-11 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
@@ -145,7 +186,7 @@ export default function AdminSpecialEmployees() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {specialEmployees.map((employee) => (
+            {paginated.map((employee) => (
               <div key={employee._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -158,7 +199,14 @@ export default function AdminSpecialEmployees() {
                       <p className="text-gray-500 text-sm mt-1">{employee.jobCategory || 'Special Employee'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {/* Toggle Switch */}
+                    <button
+                      onClick={() => handleToggleStatus(employee)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${employee.status === 'approved' ? 'bg-green-500' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${employee.status === 'approved' ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
                     <button
                       onClick={() => handleManagePermissions(employee)}
                       className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
@@ -186,7 +234,7 @@ export default function AdminSpecialEmployees() {
                 </div>
               </div>
             ))}
-            {specialEmployees.length === 0 && (
+            {paginated.length === 0 && (
               <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
                 <Shield className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500">No special employees found.</p>
@@ -194,29 +242,73 @@ export default function AdminSpecialEmployees() {
             )}
           </div>
         )}
+
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 bg-white border border-gray-200 rounded-xl">
+            <p className="text-sm text-gray-600">Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}</p>
+            <div className="flex items-center gap-2">
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <span className="text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Special Employee" size="md">
-        <form onSubmit={handleAddEmployee} className="space-y-4">
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Special Employee" size="lg">
+        <form onSubmit={handleAddEmployee} className="space-y-5 max-h-[70vh] overflow-y-auto pr-2">
+          {/* Personal Information */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input required type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="E.g. Samuel Tolasa" />
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Personal Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label className="block text-gray-700 mb-1 text-sm">Full Name *</label><input required type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Samuel Tolasa" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Email *</label><input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="name@domain.com" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Password *</label><input required type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 characters" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Phone</label><input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="+251 9XX XXX XXX" /></div>
+            </div>
           </div>
+
+          {/* Demographics */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="name@domain.com" />
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Demographics</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><label className="block text-gray-700 mb-1 text-sm">Date of Birth</label><input type="date" value={formData.dateOfBirth} onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Gender</label>
+                <select value={formData.sex} onChange={e => setFormData({ ...formData, sex: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option>
+                </select>
+              </div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Nationality</label><input type="text" value={formData.nationality} onChange={e => setFormData({ ...formData, nationality: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Ethiopian" /></div>
+            </div>
           </div>
+
+          {/* Role & Address */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input required type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Role & Location</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label className="block text-gray-700 mb-1 text-sm">Role / Title</label><input type="text" value={formData.jobCategory} onChange={e => setFormData({ ...formData, jobCategory: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Manager, Supervisor, etc." /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Address</label><input type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Kebele 03, Bole" /></div>
+            </div>
           </div>
+
+          {/* Emergency Contact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role/Title (Optional)</label>
-            <input type="text" value={formData.jobCategory} onChange={e => setFormData({ ...formData, jobCategory: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Manager, Supervisor, etc." />
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Emergency Contact</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><label className="block text-gray-700 mb-1 text-sm">Contact Name</label><input type="text" value={formData.emergencyContactName} onChange={e => setFormData({ ...formData, emergencyContactName: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Contact Phone</label><input type="tel" value={formData.emergencyContactPhone} onChange={e => setFormData({ ...formData, emergencyContactPhone: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Relationship</label><input type="text" value={formData.emergencyContactRelationship} onChange={e => setFormData({ ...formData, emergencyContactRelationship: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Spouse" /></div>
+            </div>
           </div>
+
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button disabled={submitting} type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {submitting ? 'Adding...' : 'Add Employee'}
+              {submitting ? 'Adding...' : 'Add Special Employee'}
             </button>
             <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700">Cancel</button>
           </div>

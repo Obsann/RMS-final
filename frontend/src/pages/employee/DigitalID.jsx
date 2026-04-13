@@ -224,7 +224,7 @@ export default function EmployeeDigitalID() {
                                                 <span className="font-medium text-gray-900">{selectedRequest.user?.dateOfBirth ? new Date(selectedRequest.user.dateOfBirth).toLocaleDateString() : '—'}</span>
                                             </div>
                                             <div>
-                                                <span className="block text-xs font-semibold tracking-wider text-gray-500 uppercase mb-1">Sex</span>
+                                                <span className="block text-xs font-semibold tracking-wider text-gray-500 uppercase mb-1">Gender</span>
                                                 <span className="font-medium text-gray-900">{selectedRequest.user?.sex || '—'}</span>
                                             </div>
                                             <div>
