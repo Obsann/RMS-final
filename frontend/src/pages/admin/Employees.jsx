@@ -11,7 +11,7 @@ const ITEMS_PER_PAGE = 10;
 const taskCategories = [
   'Document Processing', 'Resident Services', 'ID & Registration',
   'Complaint Handling', 'Records Management', 'Community Affairs',
-  'Property Management', 'Revenue & Tax', 'Public Relations',
+  'Resident Management', 'Revenue & Tax', 'Public Relations',
   'IT & Systems', 'Administrative Support', 'Field Inspection'
 ];
 

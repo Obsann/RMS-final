@@ -71,7 +71,7 @@ export default function AdminReports() {
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
             <h1>Reports & Analytics</h1>
-            <p className="text-gray-600 mt-1">Comprehensive property management reports</p>
+            <p className="text-gray-600 mt-1">Comprehensive resident management reports</p>
           </div>
           <div className="flex gap-3">
             <button

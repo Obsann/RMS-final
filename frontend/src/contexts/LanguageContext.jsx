@@ -19,11 +19,11 @@ export const translations = {
     digitalId: 'Digital ID',
     profile: 'Profile',
     // App-wide
-    propertyManagement: 'Property Management',
+    propertyManagement: 'Resident Management',
     searchPlaceholder: 'Search residents, employees, tasks...',
     // Welcome
-    welcomeTitle: 'Property Management System',
-    welcomeSubtitle: 'Comprehensive property management solution for modern living',
+    welcomeTitle: 'Resident Management System',
+    welcomeSubtitle: 'Comprehensive resident management solution for modern living',
     getStarted: 'Get Started',
     loginButton: 'Login to Your Account',
     registerButton: 'Register as Resident',
@@ -89,11 +89,11 @@ export const translations = {
     digitalId: 'ዲጂታል መታወቂያ',
     profile: 'መገለጫ',
     // App-wide
-    propertyManagement: 'ንብረት አስተዳደር',
+    propertyManagement: 'ነዋሪ አስተዳደር',
     searchPlaceholder: 'ነዋሪዎችን፣ ሠራተኞችን ወይም ሥራዎችን ፈልግ...',
     // Welcome
-    welcomeTitle: 'የንብረት አስተዳደር ስርዓት',
-    welcomeSubtitle: 'ለዘመናዊ ኑሮ ሁሉን አቀፍ የንብረት አስተዳደር መፍትሄ',
+    welcomeTitle: 'የነዋሪ አስተዳደር ስርዓት',
+    welcomeSubtitle: 'ለዘመናዊ ኑሮ ሁሉን አቀፍ የነዋሪ አስተዳደር መፍትሄ',
     getStarted: 'ጀምር',
     loginButton: 'ወደ መለያዎ ይግቡ',
     registerButton: 'እንደ ነዋሪ ይመዝገቡ',

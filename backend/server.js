@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
+const session = require('express-session');
 
 // Load environment variables FIRST
 dotenv.config();
@@ -15,6 +16,9 @@ if (missingEnvVars.length > 0) {
   console.error('FATAL: Missing required environment variables:', missingEnvVars.join(', '));
   process.exit(1);
 }
+
+// Passport must be required AFTER dotenv.config() so Google OAuth credentials are available
+const passport = require('./config/passport');
 
 const connectDB = require('./config/db');
 const authRouter = require('./routes/authRoute.js');
@@ -62,7 +66,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// 5. Rate Limiting
+// 5. Session (needed for Passport OAuth handshake)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 60000 } // Short-lived: only for OAuth redirect
+}));
+
+// 6. Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// 7. Rate Limiting
 app.use('/api', apiLimiter);
 
 // 6. Database Connection

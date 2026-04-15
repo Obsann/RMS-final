@@ -9,6 +9,7 @@ import { loginAPI, getMeAPI, logoutAPI } from './utils/api';
 import Welcome from './pages/Welcome';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import GoogleCallback from './pages/GoogleCallback';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -52,6 +53,7 @@ export const AuthContext = createContext({
   user: null as null | { id: string; username: string; name?: string; email: string; role: string; status: string; unit?: string },
   login: async (_email: string, _password: string): Promise<any> => ({}),
   logout: (): void => { },
+  setUserFromOAuth: (_user: any): void => { },
   loading: true,
 });
 
@@ -80,6 +82,7 @@ const router = createBrowserRouter([
   { path: '/', element: <Welcome /> },
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
+  { path: '/auth/google/callback', element: <GoogleCallback /> },
 
   // Admin Routes
   { path: '/admin/dashboard', element: <AuthGuard allowedRoles={['admin']}><AdminDashboard /></AuthGuard> },
@@ -157,8 +160,12 @@ function App() {
     setUser(null);
   };
 
+  const setUserFromOAuth = (userData: any) => {
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, setUserFromOAuth, loading }}>
       <LanguageProvider>
         <DigitalIDProvider>
           <NotificationProvider>

@@ -45,7 +45,7 @@ export default function WelcomeHero() {
             {t('welcomeTitle') || 'Empowering\nModern Living'}
           </h1>
           <p className="text-gray-500 leading-relaxed mb-8 max-w-md" style={{ fontSize: 17 }}>
-            {t('welcomeSubtitle') || 'Streamline your property operations with our efficient and comprehensive resident management solution.'}
+            {t('welcomeSubtitle') || 'Streamline your resident operations with our efficient and comprehensive resident management solution.'}
           </p>
 
           {/* Trust badges */}

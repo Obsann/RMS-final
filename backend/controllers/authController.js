@@ -416,6 +416,48 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Google OAuth callback handler
+ * Called after Passport authenticates the user via Google.
+ * Issues a JWT and redirects to the frontend.
+ */
+const googleCallback = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+    }
+
+    // Check if user is pending approval
+    if (user.status === 'pending') {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=pending_approval`);
+    }
+
+    // Check if user is rejected
+    if (user.status === 'rejected') {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=account_rejected`);
+    }
+
+    // Generate JWT (same as normal login)
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/google/callback?token=${token}`);
+  } catch (err) {
+    logger.error("Google callback error:", err);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=server_error`);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -423,5 +465,6 @@ module.exports = {
   updateUserStatus,
   changePassword,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
+  googleCallback
 };

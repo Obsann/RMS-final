@@ -74,6 +74,12 @@ export function logoutAPI() {
     setToken(null);
 }
 
+export function getGoogleOAuthURL() {
+    // In development, the Vite proxy handles /api routes,
+    // but for OAuth we need a full redirect to the backend
+    return 'http://localhost:5000/api/auth/google';
+}
+
 // ── Users ───────────────────────────────────────────────────────────────────
 
 export function getUsers(params = '') {

@@ -55,7 +55,7 @@ export default function ResidentDashboard() {
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-8">
           <h1 className="text-white mb-2">እንኳን ደህና መጡ! — Welcome Back!</h1>
-          <p className="text-blue-100">Your property management dashboard</p>
+          <p className="text-blue-100">Your resident management dashboard</p>
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
               <p className="text-blue-200">Unit</p>
