@@ -8,7 +8,7 @@ import {
   CheckCircle, Clock, UserX, Baby, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUsers, updateUser } from '../../utils/api';
+import { getUsers } from '../../utils/api';
 
 const ID_STATUS = {
   verified: { color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Verified' },
@@ -31,9 +31,6 @@ export default function SpecialEmployeeResidents() {
   const [filterIdStatus, setFilterIdStatus] = useState('all');
   const [selectedResident, setSelectedResident] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { fetchResidents(); }, []);
 
@@ -55,17 +52,7 @@ export default function SpecialEmployeeResidents() {
     return matchSearch && matchStatus && matchId;
   });
 
-  const handleSaveEdit = async () => {
-    setSubmitting(true);
-    try {
-      await updateUser(editData._id, { phone: editData.phone, status: editData.status });
-      toast.success('Resident updated!');
-      setShowEditModal(false);
-      fetchResidents();
-    } catch (error) {
-      toast.error(error.message || 'Failed to update resident');
-    } finally { setSubmitting(false); }
-  };
+
 
   return (
     <DashboardLayout>
@@ -182,14 +169,10 @@ export default function SpecialEmployeeResidents() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mt-4">
                       <button onClick={() => { setSelectedResident(r); setShowViewModal(true); }}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-indigo-700 text-sm font-semibold transition-colors">
-                        <Eye className="w-4 h-4" /> View
-                      </button>
-                      <button onClick={() => { setEditData({ ...r }); setShowEditModal(true); }}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 text-sm font-semibold transition-colors">
-                        <Edit className="w-4 h-4" /> Edit
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-indigo-700 text-sm font-semibold transition-colors">
+                        <Eye className="w-4 h-4" /> View Full Profile
                       </button>
                     </div>
                   </div>
@@ -269,35 +252,6 @@ export default function SpecialEmployeeResidents() {
         })()}
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Resident" size="sm">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Phone Number</label>
-            <input type="tel" value={editData.phone || ''}
-              onChange={e => setEditData({ ...editData, phone: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-gray-50" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Account Status</label>
-            <select value={editData.status || 'approved'}
-              onChange={e => setEditData({ ...editData, status: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-gray-50 font-semibold">
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button onClick={handleSaveEdit} disabled={submitting}
-              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 disabled:opacity-50">
-              {submitting ? 'Saving…' : 'Save Changes'}
-            </button>
-            <button onClick={() => setShowEditModal(false)}
-              className="flex-1 py-2.5 border border-gray-200 rounded-xl font-semibold text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-          </div>
-        </div>
-      </Modal>
     </DashboardLayout>
   );
 }

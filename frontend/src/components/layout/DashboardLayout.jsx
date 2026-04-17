@@ -78,8 +78,8 @@ export default function DashboardLayout({ children }) {
 
   const specialEmployeeMenuItems = [
     { labelKey: 'dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/special-employee/dashboard' },
-    { labelKey: 'residents', icon: <Users className="w-5 h-5" />, path: '/special-employee/residents' },
-    { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/special-employee/employees' },
+    { labelKey: 'residents', icon: <Users className="w-5 h-5" />, path: '/special-employee/residents', readOnly: true },
+    { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/special-employee/employees', readOnly: true },
     { labelKey: 'requestsComplaints', icon: <MessageSquare className="w-5 h-5" />, path: '/special-employee/requests' },
     { labelKey: 'digitalIdSystem', icon: <IdCard className="w-5 h-5" />, path: '/special-employee/digital-id' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/special-employee/notifications' },
