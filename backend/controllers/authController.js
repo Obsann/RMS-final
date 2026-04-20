@@ -219,7 +219,9 @@ const checkUser = async (req, res) => {
         profilePhoto: user.profilePhoto,
         emergencyContact: user.emergencyContact,
         digitalId: user.digitalId,
-        dependents: user.dependents
+        dependents: user.dependents,
+        jobCategory: user.jobCategory,
+        createdAt: user.createdAt,
       }
     });
   } catch (err) {

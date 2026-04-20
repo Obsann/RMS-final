@@ -38,6 +38,7 @@ import EmployeeDashboard from './pages/employee/Dashboard';
 import EmployeeNotifications from './pages/employee/Notifications';
 import EmployeeProfile from './pages/employee/Profile';
 import EmployeeDigitalID from './pages/employee/DigitalID';
+import EmployeeWorkspace from './pages/employee/Workspace';
 
 // Resident Pages
 import ResidentDashboard from './pages/resident/Dashboard';
@@ -110,6 +111,7 @@ const router = createBrowserRouter([
   { path: '/employee/dashboard', element: <AuthGuard allowedRoles={['employee']}><EmployeeDashboard /></AuthGuard> },
   { path: '/employee/notifications', element: <AuthGuard allowedRoles={['employee']}><EmployeeNotifications /></AuthGuard> },
   { path: '/employee/profile', element: <AuthGuard allowedRoles={['employee']}><EmployeeProfile /></AuthGuard> },
+  { path: '/employee/workspace', element: <AuthGuard allowedRoles={['employee']}><EmployeeWorkspace /></AuthGuard> },
   { path: '/employee/digital-id', element: <AuthGuard allowedRoles={['employee']}><EmployeeDigitalID /></AuthGuard> },
 
   // Resident Routes

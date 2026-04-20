@@ -16,8 +16,9 @@ const MANDATORY_PROFILE_FIELDS = [
   { key: 'phone', label: 'Phone Number' },
   { key: 'dateOfBirth', label: 'Date of Birth' },
   { key: 'sex', label: 'Gender' },
-  { key: 'nationality', label: 'Nationality' },
   { key: 'address', label: 'Residential Address' },
+  { key: 'nationality', label: 'Nationality' },
+  { key: 'unit', label: 'Unit / House Number' },
 ];
 
 export default function ResidentDigitalID() {
@@ -32,8 +33,9 @@ export default function ResidentDigitalID() {
     dateOfBirth: '',
     sex: '',
     phone: '',
+    address: '',
     nationality: '',
-    address: ''
+    unit: ''
   });
   const [files, setFiles] = useState({ photo: null, birthCertificate: null });
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +47,6 @@ export default function ResidentDigitalID() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      // Fetch both in parallel — digital ID status + full user profile
       const [idResult, meResult] = await Promise.allSettled([
         getMyDigitalId(),
         getMeAPI()
@@ -66,7 +67,10 @@ export default function ResidentDigitalID() {
           name: meData.username || '',
           phone: meData.phone || '',
           address: meData.address || '',
-          nationality: meData.nationality || '',
+          dateOfBirth: meData.dateOfBirth ? meData.dateOfBirth.slice(0, 10) : '',
+          sex: meData.sex || '',
+          nationality: meData.nationality || 'Ethiopian',
+          unit: meData.unit || '',
         }));
       }
     } catch {
@@ -85,7 +89,10 @@ export default function ResidentDigitalID() {
         name: me.username || prev.name,
         phone: me.phone || prev.phone,
         address: me.address || prev.address,
-        nationality: me.nationality || prev.nationality,
+        dateOfBirth: me.dateOfBirth ? me.dateOfBirth.slice(0, 10) : prev.dateOfBirth,
+        sex: me.sex || prev.sex,
+        nationality: me.nationality || prev.nationality || 'Ethiopian',
+        unit: me.unit || prev.unit,
       }));
     } catch {
       // silently fail — user can fill manually
@@ -98,10 +105,25 @@ export default function ResidentDigitalID() {
     }
   }, [showRequestForm]);
 
+  // Check which fields are already filled from the profile
+  const isFieldFilledFromProfile = (key) => {
+    if (!currentUser) return false;
+    switch (key) {
+      case 'name': return !!currentUser.username;
+      case 'phone': return !!currentUser.phone;
+      case 'address': return !!currentUser.address;
+      case 'dateOfBirth': return !!currentUser.dateOfBirth;
+      case 'sex': return !!currentUser.sex;
+      case 'nationality': return !!currentUser.nationality;
+      case 'unit': return !!currentUser.unit;
+      default: return false;
+    }
+  };
+
   const handleSubmitRequest = async (e) => {
     e.preventDefault();
-    const { name, dateOfBirth, sex, phone, nationality, address } = formData;
-    if (!name || !dateOfBirth || !sex || !phone || !nationality || !address) {
+    const { name, dateOfBirth, sex, phone, address, nationality, unit } = formData;
+    if (!name || !dateOfBirth || !sex || !phone || !address || !nationality || !unit) {
       toast.error('Please fill in all required text fields.');
       return;
     }
@@ -127,10 +149,19 @@ export default function ResidentDigitalID() {
       const resData = await res.json();
 
       if (!res.ok) {
-        throw new Error(resData.message || 'Failed to submit digital ID request');
+        // Special handling for liveness check failure
+        if (resData.error === 'Liveness Check Failed') {
+          toast.error(
+            'Liveness check failed — your photo appears to be a printout or screenshot. Please upload a real, clear photo of yourself.',
+            { duration: 8000 }
+          );
+        } else {
+          throw new Error(resData.message || 'Failed to submit digital ID request');
+        }
+        return;
       }
 
-      toast.success('Digital ID request submitted! Waiting for admin approval.');
+      toast.success('Digital ID request submitted! Your photo passed liveness verification. Waiting for admin approval.');
       setShowRequestForm(false);
       fetchAll();
     } catch (error) {
@@ -176,7 +207,9 @@ export default function ResidentDigitalID() {
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Resident Digital ID</h1>
-          <p className="text-gray-600 mt-1">Your official Kebele community identification</p>
+          <p className="text-gray-600 mt-1">
+            Your official Kebele Foundational Identity — a unique digital ID issued by the Hermata Merkato sub-city administration
+          </p>
         </div>
 
         {/* ── APPROVED: Show the actual ID card ── */}
@@ -194,7 +227,7 @@ export default function ResidentDigitalID() {
                 <div className="flex justify-between items-start mb-8">
                   <div>
                     <p className="text-blue-200 font-semibold text-sm tracking-widest uppercase">Kebele Digital ID</p>
-                    <p className="text-xs text-blue-300 mt-0.5">Resident Management System</p>
+                    <p className="text-xs text-blue-300 mt-0.5">Hermata Merkato • Jimma City</p>
                   </div>
                   <div className="bg-green-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 border border-green-400/40 text-green-200">
                     <CheckCircle className="w-4 h-4" />
@@ -226,8 +259,8 @@ export default function ResidentDigitalID() {
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                       <div>
-                        <p className="text-blue-300 text-xs uppercase tracking-wider">Unit</p>
-                        <p className="text-white font-medium">{resident.unit || '—'}</p>
+                        <p className="text-blue-300 text-xs uppercase tracking-wider">FIN</p>
+                        <p className="text-white font-medium text-sm">{digitalId.idNumber || '—'}</p>
                       </div>
                       <div>
                         <p className="text-blue-300 text-xs uppercase tracking-wider">Nationality</p>
@@ -260,7 +293,7 @@ export default function ResidentDigitalID() {
 
                 <div className="mt-6 pt-4 border-t border-white/20 flex justify-between items-center">
                   <p className="text-xs text-blue-400">This ID is the property of the Kebele Administration</p>
-                  <div className="text-xs text-blue-400">RMS • kebele.gov</div>
+                  <div className="text-xs text-blue-400">RMS • Hermata Merkato</div>
                 </div>
               </div>
             </div>
@@ -307,7 +340,6 @@ export default function ResidentDigitalID() {
               </div>
               <div className="p-6 grid sm:grid-cols-2 gap-4">
                 <InfoRow icon={<User className="w-4 h-4" />} label="Full Name" value={resident.username} />
-                <InfoRow icon={<Globe className="w-4 h-4" />} label="Nationality" value={resident.nationality} />
                 <InfoRow icon={<Calendar className="w-4 h-4" />} label="Date of Birth"
                   value={resident.dateOfBirth ? new Date(resident.dateOfBirth).toLocaleDateString() : null}
                 />
@@ -319,7 +351,6 @@ export default function ResidentDigitalID() {
                   label="Request Date"
                   value={new Date(digitalId.createdAt).toLocaleDateString()}
                 />
-                <InfoRow icon={<Shield className="w-4 h-4" />} label="Unit" value={resident.unit} />
               </div>
             </div>
           </div>
@@ -344,7 +375,7 @@ export default function ResidentDigitalID() {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">No Digital ID Found</h2>
             <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-              You haven't applied for your Kebele Digital ID yet.
+              You haven't applied for your Kebele Foundational Digital ID yet. The Kebele will issue a unique Foundational Identity Number (FIN) for you upon approval.
             </p>
 
             {/* Profile completeness gate */}
@@ -440,92 +471,109 @@ export default function ResidentDigitalID() {
         <form onSubmit={handleSubmitRequest} className="space-y-4 overflow-y-auto max-h-[75vh] px-1">
           <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-800 flex gap-3 items-start">
             <Shield className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-            <p>Provide accurate demographic information and upload the required documents. All fields are required.</p>
+            <p>Fields already filled from your profile are shown as read-only. Upload the required documents to complete your application.</p>
           </div>
 
           {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-            <input
-              required type="text"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="E.g., Abebe Kebede Alemu"
-            />
+            {isFieldFilledFromProfile('name') ? (
+              <input type="text" disabled value={formData.name}
+                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+            ) : (
+              <input required type="text" value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                placeholder="E.g., Abebe Kebede Alemu" />
+            )}
           </div>
 
           {/* DOB + Sex */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
-              <input
-                required type="date"
-                value={formData.dateOfBirth}
-                onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
+              {isFieldFilledFromProfile('dateOfBirth') ? (
+                <input type="text" disabled
+                  value={formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString() : ''}
+                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              ) : (
+                <input required type="date" value={formData.dateOfBirth}
+                  onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
-              <select
-                required
-                value={formData.sex}
-                onChange={e => setFormData({ ...formData, sex: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                <option value="">Select...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
+              {isFieldFilledFromProfile('sex') ? (
+                <input type="text" disabled value={formData.sex}
+                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              ) : (
+                <select required value={formData.sex}
+                  onChange={e => setFormData({ ...formData, sex: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              )}
             </div>
           </div>
 
-          {/* Phone + Nationality */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
-              <input
-                required type="tel"
-                value={formData.phone}
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+            {isFieldFilledFromProfile('phone') ? (
+              <input type="text" disabled value={formData.phone}
+                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+            ) : (
+              <input required type="tel" value={formData.phone}
                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="+251..."
-              />
-            </div>
+                placeholder="+251..." />
+            )}
+          </div>
+
+          {/* Nationality + Unit */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nationality *</label>
-              <input
-                required type="text"
-                value={formData.nationality}
-                onChange={e => setFormData({ ...formData, nationality: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="E.g., Ethiopian"
-              />
+              {isFieldFilledFromProfile('nationality') ? (
+                <input type="text" disabled value={formData.nationality}
+                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              ) : (
+                <input required type="text" value={formData.nationality}
+                  onChange={e => setFormData({ ...formData, nationality: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="E.g., Ethiopian" />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Unit / House No *</label>
+              {isFieldFilledFromProfile('unit') ? (
+                <input type="text" disabled value={formData.unit}
+                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              ) : (
+                 <input required type="text" value={formData.unit}
+                  onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="E.g., A-12" />
+              )}
             </div>
           </div>
 
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-            <textarea
-              required
-              value={formData.address}
-              onChange={e => setFormData({ ...formData, address: e.target.value })}
-              rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-              placeholder="Full residential address (Kebele, Woreda, City)"
-            />
-          </div>
-
-          {/* Auto-filled Issued Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Issued Date (Auto)</label>
-            <input
-              type="text" disabled
-              value={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed"
-            />
+            {isFieldFilledFromProfile('address') ? (
+              <input type="text" disabled value={formData.address}
+                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+            ) : (
+              <textarea required value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                placeholder="Full residential address (Kebele, Woreda, City)" />
+            )}
           </div>
 
           {/* Documents */}
@@ -533,6 +581,14 @@ export default function ResidentDigitalID() {
             <h4 className="font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" /> Required Documents
             </h4>
+            
+            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-blue-800 space-y-1">
+                <p>Please ensure each uploaded file is <strong>under 10 MB</strong> in size.</p>
+                <p>Your <strong>passport photo will undergo a liveness check</strong> to verify it is a real photograph of a live person (not a printout or screenshot).</p>
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -569,7 +625,7 @@ export default function ResidentDigitalID() {
               disabled={submitting} type="submit"
               className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors"
             >
-              {submitting ? 'Submitting...' : 'Submit Application'}
+              {submitting ? 'Verifying & Submitting...' : 'Submit Application'}
             </button>
             <button
               type="button"

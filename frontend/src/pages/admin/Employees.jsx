@@ -9,10 +9,8 @@ import { getUsers, createUser, updateUser } from '../../utils/api';
 const ITEMS_PER_PAGE = 10;
 
 const taskCategories = [
-  'Document Processing', 'Resident Services', 'ID & Registration',
-  'Complaint Handling', 'Records Management', 'Community Affairs',
-  'Resident Management', 'Revenue & Tax', 'Public Relations',
-  'IT & Systems', 'Administrative Support', 'Field Inspection'
+  'ID & Registration', 'Document Processing', 'Resident Services',
+  'Complaint Handling', 'Records Management', 'IT & Systems'
 ];
 
 const emptyForm = {

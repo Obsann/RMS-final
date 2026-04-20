@@ -70,7 +70,8 @@ const userSchema = new mongoose.Schema(
     },
     nationality: {
       type: String,
-      trim: true
+      trim: true,
+      default: 'Ethiopian'
     },
     // For employee categories
     jobCategory: {

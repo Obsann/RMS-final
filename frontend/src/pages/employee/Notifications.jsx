@@ -160,7 +160,7 @@ export default function EmployeeNotifications() {
             <p className="text-gray-500 mt-1 text-sm">
               {unreadCount > 0
                 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
-                : '✅ All caught up! No unread notifications.'}
+                : 'All caught up! No unread notifications.'}
             </p>
           </div>
           {unreadCount > 0 && (

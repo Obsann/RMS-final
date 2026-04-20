@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
   Clock, CheckCircle, AlertTriangle, Calendar, Loader2,
-  Bell, Megaphone, Send, FileText, BarChart2, User
+  Bell, Megaphone, Send, FileText, BarChart2, User, Briefcase
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ export default function EmployeeDashboard() {
   const [jobs, setJobs] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [jobCategory, setJobCategory] = useState('');
 
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -29,11 +30,16 @@ export default function EmployeeDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [jobData, notifData] = await Promise.allSettled([
+      const [jobData, notifData, meData] = await Promise.allSettled([
         getJobs(),
         getNotifications(),
+        getMeAPI(),
       ]);
       if (jobData.status === 'fulfilled') setJobs(jobData.value?.jobs || []);
+      if (meData.status === 'fulfilled') {
+        const me = meData.value?.user || meData.value;
+        setJobCategory(me?.jobCategory || '');
+      }
       if (notifData.status === 'fulfilled') {
         // Treat "announcement" or "message" from admin/sp as announcements
         const allNotifs = notifData.value?.notifications || [];
@@ -111,6 +117,14 @@ export default function EmployeeDashboard() {
               <p className="text-blue-200 mt-1 text-sm">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
+              {jobCategory && (
+                <p className="mt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full text-sm font-medium text-blue-100">
+                    <Briefcase className="w-3.5 h-3.5" />
+                    {jobCategory}
+                  </span>
+                </p>
+              )}
               <p className="mt-3 text-blue-100 text-sm">
                 You have <strong className="text-white">{activeJobs.length}</strong> active task{activeJobs.length !== 1 ? 's' : ''}
                 {dueTodayJobs.length > 0 && (
@@ -125,18 +139,19 @@ export default function EmployeeDashboard() {
         </div>
 
         {/* Task Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: 'Active Tasks', value: activeJobs.length, icon: <Clock className="w-6 h-6" />, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
             { label: 'In Progress', value: inProgressJobs.length, icon: <BarChart2 className="w-6 h-6" />, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
             { label: 'Due Today', value: dueTodayJobs.length, icon: <AlertTriangle className="w-6 h-6" />, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
             { label: 'Completed', value: completedJobs.length, icon: <CheckCircle className="w-6 h-6" />, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+            { label: 'Position', value: jobCategory || 'Unassigned', icon: <Briefcase className="w-6 h-6" />, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200', isText: true },
           ].map((stat, idx) => (
             <div key={idx} className={`bg-white p-5 rounded-xl shadow-sm border ${stat.border}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                  <p className={`${stat.isText ? 'text-sm' : 'text-2xl'} font-bold text-gray-900 mt-1`}>{stat.value}</p>
                 </div>
                 <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>{stat.icon}</div>
               </div>

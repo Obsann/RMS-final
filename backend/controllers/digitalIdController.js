@@ -1,6 +1,8 @@
+const path = require('path');
 const logger = require('../config/logger');
 const DigitalId = require('../models/DigitalId');
 const User = require('../models/authmodel');
+const { checkLiveness } = require('../utils/livenessCheck');
 
 /**
  * Generate digital ID for a user
@@ -56,6 +58,29 @@ const generateDigitalId = async (req, res) => {
             }
         }
 
+        // ── Liveness check on the uploaded passport photo ──
+        let livenessResult = { isLive: true, score: null, raw: { skipped: true } };
+
+        if (req.files && req.files.photo && req.files.photo[0]) {
+            const photoPath = req.files.photo[0].path;
+            logger.info(`Running liveness check on: ${photoPath}`);
+            livenessResult = await checkLiveness(photoPath);
+
+            if (!livenessResult.isLive && !livenessResult.raw?.apiUnavailable) {
+                // Photo failed liveness — reject the request
+                return res.status(400).json({
+                    error: 'Liveness Check Failed',
+                    message: 'The uploaded photo did not pass the liveness verification. Please upload a clear, real photograph of yourself (not a printout, screenshot, or photo of a photo).',
+                    livenessScore: livenessResult.score
+                });
+            }
+
+            // If API was unavailable, log a warning but allow submission for manual review
+            if (livenessResult.raw?.apiUnavailable) {
+                logger.warn(`Liveness API unavailable for user ${targetUserId} — flagging for manual review`);
+            }
+        }
+
         // Use findByIdAndUpdate to persist demographics WITHOUT triggering
         // the password pre-save hook (which would re-hash an already-hashed password)
         if (Object.keys(demographicUpdates).length > 0) {
@@ -66,11 +91,23 @@ const generateDigitalId = async (req, res) => {
             );
         }
 
+        // Generate a Foundational Identity Number (FIN)
+        const finYear = new Date().getFullYear();
+        const finRandom = Math.floor(1000 + Math.random() * 9000);
+        const idNumber = `FIN-HMJC-${finYear}-${finRandom}`;
+
         // Create the digital ID record
         digitalId = await DigitalId.create({
             user: targetUserId,
             qrCode,
-            status: 'pending'
+            idNumber,
+            status: 'pending',
+            livenessCheck: {
+                passed: livenessResult.isLive,
+                score: livenessResult.score,
+                checkedAt: new Date(),
+                apiUnavailable: livenessResult.raw?.apiUnavailable || false
+            }
         });
 
         // Update only the digitalId sub-doc on the user (safe — no password changes)
@@ -139,7 +176,7 @@ const getDigitalIdByUser = async (req, res) => {
         }
 
         const digitalId = await DigitalId.findOne({ user: userId })
-            .populate('user', 'username email unit phone');
+            .populate('user', 'username email unit phone sex nationality address dateOfBirth profilePhoto');
 
         if (!digitalId) {
             return res.status(404).json({ error: 'Not Found', message: 'Digital ID not found' });

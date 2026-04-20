@@ -34,6 +34,7 @@ export default function DashboardLayout({ children }) {
   const [bellCount, setBellCount] = useState(0);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  const [employeeJobCategory, setEmployeeJobCategory] = useState('');
   const [profilePhoto, setProfilePhoto] = useState(null);
 
   // Fetch real unread notification count + profile photo from API
@@ -55,8 +56,10 @@ export default function DashboardLayout({ children }) {
         }
         if (meRes.ok) {
           const data = await meRes.json();
-          const photo = (data.user || data)?.profilePhoto;
+          const me = data.user || data;
+          const photo = me?.profilePhoto;
           if (photo) setProfilePhoto(`/uploads/${photo.replace(/^.*?uploads\//, '')}`);
+          if (me?.jobCategory) setEmployeeJobCategory(me.jobCategory);
         }
       } catch (e) { /* silent */ }
     };
@@ -86,9 +89,20 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'reports', icon: <FileText className="w-5 h-5" />, path: '/special-employee/reports' },
   ];
 
+  // Dynamic workspace label/icon based on assigned job category
+  const workspaceConfig = {
+    'ID & Registration': { label: 'ID & Registration', icon: <IdCard className="w-5 h-5" /> },
+    'Document Processing': { label: 'Documents', icon: <FileText className="w-5 h-5" /> },
+    'Resident Services': { label: 'Resident Services', icon: <Users className="w-5 h-5" /> },
+    'Complaint Handling': { label: 'Complaints', icon: <MessageSquare className="w-5 h-5" /> },
+    'Records Management': { label: 'Records', icon: <ClipboardList className="w-5 h-5" /> },
+    'IT & Systems': { label: 'IT & Systems', icon: <Settings className="w-5 h-5" /> },
+  };
+  const ws = workspaceConfig[employeeJobCategory] || { label: 'My Workspace', icon: <ClipboardList className="w-5 h-5" /> };
+
   const employeeMenuItems = [
-    { labelKey: 'myTasks', icon: <ClipboardList className="w-5 h-5" />, path: '/employee/dashboard' },
-    { labelKey: 'Digital ID', icon: <IdCard className="w-5 h-5" />, path: '/employee/digital-id' },
+    { labelKey: 'myTasks', icon: <LayoutDashboard className="w-5 h-5" />, path: '/employee/dashboard' },
+    { labelKey: ws.label, icon: ws.icon, path: '/employee/workspace' },
     { labelKey: 'profile', icon: <Users className="w-5 h-5" />, path: '/employee/profile' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/employee/notifications' },
   ];

@@ -4,28 +4,51 @@ import Modal from '../../components/ui/Modal';
 import {
   Camera, Edit2, Mail, Phone, Home, Shield, Plus, FileText,
   Loader2, Trash2, AlertTriangle, CheckCircle, User, MapPin,
-  Calendar, Users, AlertCircle
+  Calendar, Users, AlertCircle, IdCard
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getMeAPI, updateUser, api } from '../../utils/api';
+import { getMeAPI, updateUser, api, getMyDigitalId } from '../../utils/api';
 
 // Mandatory fields that must be filled to request a Digital ID
+// (nationality removed since system is for Hermata Merkato, Jimma City, Ethiopia)
 const MANDATORY_FIELDS = [
   { key: 'phone', label: 'Phone Number' },
   { key: 'dateOfBirth', label: 'Date of Birth' },
   { key: 'sex', label: 'Gender' },
-  { key: 'nationality', label: 'Nationality' },
   { key: 'address', label: 'Address' },
+  { key: 'nationality', label: 'Nationality' },
+  { key: 'unit', label: 'Unit / House Number' }
 ];
 
 function getMissingFields(user) {
   return MANDATORY_FIELDS.filter(f => !user?.[f.key]);
 }
 
-function ProfileCompletenessBar({ user }) {
+function getMemberSinceDate(user) {
+  if (!user) return new Date();
+  if (user.createdAt) return new Date(user.createdAt);
+  if (user._id) return new Date(parseInt(user._id.substring(0, 8), 16) * 1000);
+  return new Date();
+}
+
+function ProfileCompletenessBar({ user, digitalIdStatus }) {
   const missing = getMissingFields(user);
   const completed = MANDATORY_FIELDS.length - missing.length;
   const pct = Math.round((completed / MANDATORY_FIELDS.length) * 100);
+
+  // If Digital ID is approved/issued, just show "Profile Complete"
+  if (missing.length === 0 && (digitalIdStatus === 'approved' || digitalIdStatus === 'issued')) {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-center gap-3">
+        <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+          <CheckCircle className="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <p className="font-semibold text-green-800 text-sm">Profile Complete</p>
+        </div>
+      </div>
+    );
+  }
 
   if (missing.length === 0) {
     return (
@@ -35,7 +58,7 @@ function ProfileCompletenessBar({ user }) {
         </div>
         <div>
           <p className="font-semibold text-green-800 text-sm">Profile Complete</p>
-          <p className="text-xs text-green-600">You are eligible to request a Kebele Digital ID.</p>
+          <p className="text-xs text-green-600">You can now request your Kebele Digital ID.</p>
         </div>
       </div>
     );
@@ -75,6 +98,7 @@ const inputCls = (focused) =>
 export default function ResidentProfile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [digitalIdStatus, setDigitalIdStatus] = useState(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddDependentModal, setShowAddDependentModal] = useState(false);
@@ -91,22 +115,37 @@ export default function ResidentProfile() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const resData = await getMeAPI();
-      const userData = resData.user || resData;
-      setUser(userData);
-      setEditFormData({
-        username: userData.username || '',
-        phone: userData.phone || '',
-        dateOfBirth: userData.dateOfBirth ? userData.dateOfBirth.slice(0, 10) : '',
-        sex: userData.sex || '',
-        nationality: userData.nationality || '',
-        address: userData.address || '',
-        emergencyContact: userData.emergencyContact
-          ? (typeof userData.emergencyContact === 'object'
-            ? userData.emergencyContact.phone || ''
-            : userData.emergencyContact)
-          : '',
-      });
+      const [resData, didResult] = await Promise.allSettled([
+        getMeAPI(),
+        getMyDigitalId()
+      ]);
+
+      if (resData.status === 'fulfilled') {
+        const userData = resData.value.user || resData.value;
+        setUser(userData);
+        setEditFormData({
+          username: userData.username || '',
+          phone: userData.phone || '',
+          dateOfBirth: userData.dateOfBirth ? userData.dateOfBirth.slice(0, 10) : '',
+          sex: userData.sex || '',
+          nationality: userData.nationality || 'Ethiopian',
+          unit: userData.unit || '',
+          address: userData.address || '',
+          emergencyContact: userData.emergencyContact
+            ? (typeof userData.emergencyContact === 'object'
+              ? userData.emergencyContact.phone || ''
+              : userData.emergencyContact)
+            : '',
+        });
+      } else {
+        toast.error('Failed to load profile');
+      }
+
+      if (didResult.status === 'fulfilled' && didResult.value) {
+        setDigitalIdStatus(didResult.value.status);
+      } else {
+        setDigitalIdStatus(null);
+      }
     } catch {
       toast.error('Failed to load profile');
     } finally {
@@ -120,8 +159,9 @@ export default function ResidentProfile() {
     else if (!/^[0-9+\-() ]{7,20}$/.test(editFormData.phone)) errs.phone = 'Enter a valid phone number';
     if (!editFormData.dateOfBirth) errs.dateOfBirth = 'Date of Birth is required';
     if (!editFormData.sex) errs.sex = 'Gender is required';
-    if (!editFormData.nationality?.trim()) errs.nationality = 'Nationality is required';
     if (!editFormData.address?.trim()) errs.address = 'Address is required';
+    if (!editFormData.nationality?.trim()) errs.nationality = 'Nationality is required';
+    if (!editFormData.unit?.trim()) errs.unit = 'Unit is required';
     return errs;
   };
 
@@ -137,6 +177,7 @@ export default function ResidentProfile() {
         dateOfBirth: editFormData.dateOfBirth || undefined,
         sex: editFormData.sex || undefined,
         nationality: editFormData.nationality,
+        unit: editFormData.unit,
         address: editFormData.address,
         emergencyContact: editFormData.emergencyContact
           ? { phone: editFormData.emergencyContact }
@@ -203,25 +244,25 @@ export default function ResidentProfile() {
         method: 'POST',
         body: JSON.stringify(dependentData)
       });
-      toast.success('Dependent added!');
+      toast.success('Household member added!');
       setShowAddDependentModal(false);
       setDependentData({ name: '', relationship: '', age: '' });
       fetchProfile();
     } catch (error) {
-      toast.error(error.message || 'Failed to add dependent');
+      toast.error(error.message || 'Failed to add household member');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleRemoveDependent = async (dependentId) => {
-    if (!window.confirm('Remove this dependent?')) return;
+    if (!window.confirm('Remove this household member?')) return;
     try {
       await api(`/users/${user.id || user._id}/dependents/${dependentId}`, { method: 'DELETE' });
-      toast.success('Dependent removed');
+      toast.success('Household member removed');
       fetchProfile();
     } catch (error) {
-      toast.error(error.message || 'Failed to remove dependent');
+      toast.error(error.message || 'Failed to remove household member');
     }
   };
 
@@ -244,7 +285,7 @@ export default function ResidentProfile() {
       <div className="space-y-6 max-w-5xl mx-auto">
 
         {/* Profile completeness banner */}
-        <ProfileCompletenessBar user={user} />
+        <ProfileCompletenessBar user={user} digitalIdStatus={digitalIdStatus} />
 
         {/* Profile Header Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -327,11 +368,41 @@ export default function ResidentProfile() {
             </div>
           </div>
 
-          {/* Dependents */}
+          {/* Right Column: Unit Info + Household Members */}
           <div className="md:col-span-2 space-y-6">
+            {/* Unit Information */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Home className="w-5 h-5 text-blue-600" /> Unit Information
+                </h2>
+              </div>
+              <div className="p-6">
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Unit / House Number</p>
+                    <p className="font-medium text-gray-900">{user.unit || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Member Since</p>
+                    <p className="font-medium text-gray-900">
+                      {getMemberSinceDate(user).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Digital ID Status</p>
+                    <p className={`font-medium capitalize ${digitalIdStatus === 'approved' || digitalIdStatus === 'issued' ? 'text-green-600' : digitalIdStatus === 'pending' ? 'text-yellow-600' : 'text-gray-500'}`}>
+                      {digitalIdStatus || 'Not Requested'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Household Members */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
-                <h2 className="font-semibold text-gray-900">Family Members & Dependents</h2>
+                <h2 className="font-semibold text-gray-900">Household Members</h2>
                 <button onClick={() => setShowAddDependentModal(true)} className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1">
                   <Plus className="w-4 h-4" /> Add Member
                 </button>
@@ -359,7 +430,7 @@ export default function ResidentProfile() {
                     <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Users className="w-6 h-6 text-gray-400" />
                     </div>
-                    <p className="text-gray-500 text-sm">No family members added yet.</p>
+                    <p className="text-gray-500 text-sm">No household members added yet.</p>
                   </div>
                 )}
               </div>
@@ -422,15 +493,26 @@ export default function ResidentProfile() {
             </div>
           </div>
 
-          {/* Nationality */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5" /> Nationality <span className="text-red-500">*</span>
-            </label>
-            <input type="text" value={editFormData.nationality || ''} onChange={setEdit('nationality')}
-              className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${editErrors.nationality ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`}
-              placeholder="E.g., Ethiopian" />
-            {editErrors.nationality && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.nationality}</p>}
+          {/* Nationality + Unit */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" /> Nationality <span className="text-red-500">*</span>
+              </label>
+              <input type="text" value={editFormData.nationality || ''} onChange={setEdit('nationality')}
+                className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${editErrors.nationality ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`}
+                 placeholder="E.g., Ethiopian" />
+              {editErrors.nationality && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.nationality}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                <Home className="w-3.5 h-3.5" /> Unit / House No <span className="text-red-500">*</span>
+              </label>
+              <input type="text" value={editFormData.unit || ''} onChange={setEdit('unit')}
+                className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${editErrors.unit ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`}
+                 placeholder="E.g., A-12" />
+              {editErrors.unit && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.unit}</p>}
+            </div>
           </div>
 
           {/* Address */}
@@ -440,8 +522,17 @@ export default function ResidentProfile() {
             </label>
             <textarea value={editFormData.address || ''} onChange={setEdit('address')} rows={2}
               className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors resize-none ${editErrors.address ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`}
-              placeholder="E.g., Block A, Kebele 12, Bole Sub-city, Addis Ababa" />
+              placeholder="E.g., Kebele 12, Hermata Merkato, Jimma" />
             {editErrors.address && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.address}</p>}
+          </div>
+
+          {/* Member Since (Read only) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" /> Member Since
+            </label>
+            <input type="text" disabled value={getMemberSinceDate(user).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              className="w-full px-4 py-2.5 border border-gray-200 bg-gray-50 rounded-xl text-sm text-gray-500 cursor-not-allowed" />
           </div>
 
           {/* Emergency Contact */}
@@ -466,8 +557,8 @@ export default function ResidentProfile() {
         </div>
       </Modal>
 
-      {/* ── Add Dependent Modal ── */}
-      <Modal isOpen={showAddDependentModal} onClose={() => setShowAddDependentModal(false)} title="Add Family Member" size="md">
+      {/* ── Add Household Member Modal ── */}
+      <Modal isOpen={showAddDependentModal} onClose={() => setShowAddDependentModal(false)} title="Add Household Member" size="md">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name *</label>

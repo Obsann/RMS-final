@@ -53,7 +53,14 @@ const digitalIdSchema = new mongoose.Schema(
             ref: 'kebeleUser'
         },
         revokedAt: Date,
-        revokeReason: String
+        revokeReason: String,
+        // Liveness verification result from Luxand Cloud API
+        livenessCheck: {
+            passed: { type: Boolean, default: false },
+            score: { type: Number, default: null },
+            checkedAt: Date,
+            apiUnavailable: { type: Boolean, default: false }
+        }
     },
     {
         timestamps: true

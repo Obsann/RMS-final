@@ -35,7 +35,7 @@ const seed = async () => {
         console.log('🗑️  Cleared existing data');
 
         // ── Shared password ───────────────────────────────────────────
-        const plainPassword = 'password123';
+        const plainPassword = 'password1234';
 
         // ── Create Users ──────────────────────────────────────────────
         const usersData = [
@@ -82,7 +82,7 @@ const seed = async () => {
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Resident Registration',   // handles new resident onboarding & document intake
+                jobCategory: 'ID & Registration',       // handles new resident onboarding & document intake
             },
             {
                 username: 'yonas.tesfaye',
@@ -92,7 +92,7 @@ const seed = async () => {
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Complaint Processing',    // receives, logs, and routes complaints
+                jobCategory: 'Complaint Handling',       // receives, logs, and routes complaints
             },
             {
                 username: 'selamawit.bekele',
@@ -102,7 +102,7 @@ const seed = async () => {
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Document & Records',      // manages certificates, letters, ID records
+                jobCategory: 'Document Processing',      // manages certificates, letters, ID records
             },
             {
                 username: 'nahom.getachew',
@@ -112,7 +112,7 @@ const seed = async () => {
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Security Coordination',   // coordinates security patrols & incident reports
+                jobCategory: 'Records Management',       // coordinates security patrols & incident reports
             },
             {
                 username: 'fikirte.haile',
@@ -122,7 +122,7 @@ const seed = async () => {
                 role: 'employee',
                 status: 'approved',
                 unit: '',
-                jobCategory: 'Community Affairs',       // community announcements, welfare tasks
+                jobCategory: 'Resident Services',        // community announcements, welfare tasks
             },
 
             // ── Residents ──
@@ -272,95 +272,8 @@ const seed = async () => {
         const createdRequests = await Request.create(requests);
         console.log(`📋 Created ${createdRequests.length} requests`);
 
-        // ── Seed Jobs ─────────────────────────────────────────────────
-        // Jobs are white-collar administrative/coordination tasks
-        const jobs = [
-            {
-                title: 'Process residency certificate — Abebe Kebede',
-                description: 'Verify application documents, issue official residency certificate for Unit A-101. Required for bank account opening.',
-                category: 'Document & Records',
-                priority: 'high', status: 'assigned',
-                unit: 'A-101',
-                sourceRequest: createdRequests[0]._id,
-                assignedTo: u['selamawit.b@rms.com']._id,
-                assignedBy: u['samuel.tolasa@rms.com']._id,
-                assignedAt: new Date(Date.now() - 49 * 60 * 60 * 1000), // over 48h ago → overdue
-                dueDate: new Date(Date.now() - 2 * 60 * 60 * 1000),     // past due
-                createdBy: u['samuel.tolasa@rms.com']._id,
-            },
-            {
-                title: 'Security incident review — Block B gate',
-                description: 'Review CCTV footage, interview Block B security guard, compile incident report for admin review.',
-                category: 'Security Coordination',
-                priority: 'urgent', status: 'in-progress',
-                unit: 'B-205',
-                sourceRequest: createdRequests[1]._id,
-                assignedTo: u['nahom.g@rms.com']._id,
-                assignedBy: u['temesgen.a@rms.com']._id,
-                assignedAt: new Date(),
-                dueDate: new Date(Date.now() + 12 * 60 * 60 * 1000),
-                createdBy: u['temesgen.a@rms.com']._id,
-            },
-            {
-                title: 'Correct household record — Dawit Tadesse (C-312)',
-                description: 'Update household database record with correct unit and address information. Verify supporting documents before saving.',
-                category: 'Resident Registration',
-                priority: 'medium', status: 'assigned',
-                unit: 'C-312',
-                sourceRequest: createdRequests[2]._id,
-                assignedTo: u['mekdes.g@rms.com']._id,
-                assignedBy: u['samuel.tolasa@rms.com']._id,
-                assignedAt: new Date(Date.now() - 50 * 60 * 60 * 1000), // over 48h → overdue
-                dueDate: new Date(Date.now() - 5 * 60 * 60 * 1000),     // past due
-                createdBy: u['samuel.tolasa@rms.com']._id,
-            },
-            {
-                title: 'Prepare birth registration letter — Tigist Haile (A-204)',
-                description: 'Draft and stamp an official residency letter for child birth certificate registration. File copy in records system.',
-                category: 'Document & Records',
-                priority: 'medium', status: 'completed',
-                unit: 'A-204',
-                sourceRequest: createdRequests[3]._id,
-                assignedTo: u['selamawit.b@rms.com']._id,
-                assignedBy: u['temesgen.a@rms.com']._id,
-                assignedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-                completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-                completionNotes: 'Letter issued and stamped. Resident notified by phone.',
-                createdBy: u['temesgen.a@rms.com']._id,
-            },
-            {
-                title: 'Unregistered vehicle — investigate & report (A-101 parking)',
-                description: 'Run plate through registry. Contact owner if found. File a parking violation report if unregistered.',
-                category: 'Security Coordination',
-                priority: 'high', status: 'in-progress',
-                unit: 'A-101',
-                sourceRequest: createdRequests[5]._id,
-                assignedTo: u['nahom.g@rms.com']._id,
-                assignedBy: u['samuel.tolasa@rms.com']._id,
-                assignedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-                dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                createdBy: u['samuel.tolasa@rms.com']._id,
-            },
-            {
-                title: 'Draft & send community announcement',
-                description: 'Prepare an official notice about the upcoming community meeting (date, agenda, venue) and distribute to all Block residents.',
-                category: 'Community Affairs',
-                priority: 'low', status: 'assigned',
-                assignedTo: u['fikirte.h@rms.com']._id,
-                assignedBy: u['temesgen.a@rms.com']._id,
-                assignedAt: new Date(),
-                dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
-                createdBy: u['temesgen.a@rms.com']._id,
-            },
-        ];
-
-        const createdJobs = await Job.create(jobs);
-        await Request.findByIdAndUpdate(createdRequests[0]._id, { job: createdJobs[0]._id });
-        await Request.findByIdAndUpdate(createdRequests[1]._id, { job: createdJobs[1]._id });
-        await Request.findByIdAndUpdate(createdRequests[2]._id, { job: createdJobs[2]._id });
-        await Request.findByIdAndUpdate(createdRequests[3]._id, { job: createdJobs[3]._id });
-        await Request.findByIdAndUpdate(createdRequests[5]._id, { job: createdJobs[4]._id });
-        console.log(`📋 Created ${createdJobs.length} jobs`);
+        // ── Jobs — no seeded tasks (created via workspace) ─────────
+        console.log(`📋 Skipped jobs (no seed data)`);
 
         // ── Seed Notifications ────────────────────────────────────────
         const notifications = [
