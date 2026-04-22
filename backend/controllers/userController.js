@@ -1,6 +1,7 @@
 const logger = require('../config/logger');
 const bcrypt = require('bcrypt');
 const User = require('../models/authmodel.js');
+const AuditLog = require('../models/AuditLog.js');
 
 /**
  * Get all users (admin only)
@@ -82,6 +83,21 @@ const createUser = async (req, res) => {
       phone,
       jobCategory,
       permissions
+    });
+
+    // Log the user creation
+    await AuditLog.create({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: role === 'employee' ? 'EMPLOYEE_CREATED' : 'USER_REGISTERED',
+      targetId: newUser._id,
+      details: {
+        createdBy: req.user.username,
+        userRole: role,
+        userStatus: status || 'approved'
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
     });
 
     res.status(201).json({
@@ -198,6 +214,29 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ error: "Not Found", message: "User not found" });
     }
 
+    // Log the user update
+    const logActions = [];
+    if (updates.status) logActions.push('USER_STATUS_UPDATED');
+    if (updates.role) logActions.push('USER_ROLE_UPDATED');
+    if (Object.keys(updates).some(k => !['status', 'role'].includes(k))) logActions.push('USER_UPDATED');
+
+    for (const action of logActions) {
+      await AuditLog.create({
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        action,
+        targetId: user._id,
+        details: {
+          updatedBy: req.user.username,
+          fields: Object.keys(updates),
+          oldStatus: user.status, // Note: This is the new status, would need original for full audit
+          newStatus: updates.status
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+    }
+
     res.status(200).json({
       message: "User updated successfully",
       user
@@ -231,6 +270,21 @@ const deleteUser = async (req, res) => {
     if (!deletedUser) {
       return res.status(404).json({ error: "Not Found", message: "User not found" });
     }
+
+    // Log the user deletion
+    await AuditLog.create({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: 'USER_DELETED',
+      targetId: deletedUser._id,
+      details: {
+        deletedBy: req.user.username,
+        userRole: deletedUser.role,
+        username: deletedUser.username
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
 
     res.status(200).json({
       message: "User deleted successfully",

@@ -11,7 +11,7 @@ const employeeAuth = (req, res, next) => {
             });
         }
 
-        const allowedRoles = ['employee', 'special-employee', 'admin'];
+        const allowedRoles = ['employee', 'admin'];
 
         if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({
