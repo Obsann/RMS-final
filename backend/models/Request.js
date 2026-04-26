@@ -4,7 +4,7 @@ const requestSchema = new mongoose.Schema(
     {
         type: {
             type: String,
-            enum: ['maintenance', 'complaint', 'certificate', 'id_renewal', 'address_confirmation', 'property_transfer', 'business_license', 'general_inquiry'],
+            enum: ['maintenance', 'complaint', 'certificate', 'id_renewal', 'identity', 'permit', 'address_confirmation', 'property_transfer', 'business_license', 'general_inquiry'],
             required: [true, 'Request type is required']
         },
         resident: {
@@ -19,6 +19,20 @@ const requestSchema = new mongoose.Schema(
         category: {
             type: String,
             required: [true, 'Category is required']
+        },
+        // Service Hub fields
+        serviceType: {
+            type: String,
+            maxlength: [100, 'Service type cannot exceed 100 characters']
+        },
+        categoryTag: {
+            type: String,
+            enum: ['ID_REGISTRATION', 'DOCUMENT_PROCESSING', 'COMPLAINT_HANDLING', null],
+            default: null
+        },
+        formData: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null
         },
         subject: {
             type: String,

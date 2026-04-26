@@ -89,7 +89,7 @@ const createRequestValidator = [
     body('type')
         .trim()
         .notEmpty().withMessage('Request type is required')
-        .isIn(['maintenance', 'complaint', 'certificate', 'id_renewal', 'address_confirmation', 'property_transfer', 'business_license', 'general_inquiry']).withMessage('Invalid request type'),
+        .isIn(['maintenance', 'complaint', 'certificate', 'id_renewal', 'identity', 'permit', 'address_confirmation', 'property_transfer', 'business_license', 'general_inquiry']).withMessage('Invalid request type'),
     body('category')
         .trim()
         .notEmpty().withMessage('Category is required'),
@@ -104,6 +104,15 @@ const createRequestValidator = [
     body('priority')
         .optional()
         .isIn(['low', 'medium', 'high', 'urgent']).withMessage('Invalid priority level'),
+    body('serviceType')
+        .optional()
+        .trim()
+        .isLength({ max: 100 }).withMessage('Service type must be less than 100 characters'),
+    body('categoryTag')
+        .optional()
+        .isIn(['ID_REGISTRATION', 'DOCUMENT_PROCESSING', 'COMPLAINT_HANDLING']).withMessage('Invalid category tag'),
+    body('formData')
+        .optional(),
     validate
 ];
 

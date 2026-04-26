@@ -91,11 +91,11 @@ const createUser = async (req, res) => {
       actorRole: req.user.role,
       action: role === 'employee' ? 'EMPLOYEE_CREATED' : 'USER_REGISTERED',
       targetId: newUser._id,
-      details: {
+      details: JSON.stringify({
         createdBy: req.user.username,
         userRole: role,
         userStatus: status || 'approved'
-      },
+      }),
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });
@@ -226,12 +226,12 @@ const updateUser = async (req, res) => {
         actorRole: req.user.role,
         action,
         targetId: user._id,
-        details: {
+        details: JSON.stringify({
           updatedBy: req.user.username,
           fields: Object.keys(updates),
           oldStatus: user.status, // Note: This is the new status, would need original for full audit
           newStatus: updates.status
-        },
+        }),
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       });
@@ -277,11 +277,11 @@ const deleteUser = async (req, res) => {
       actorRole: req.user.role,
       action: 'USER_DELETED',
       targetId: deletedUser._id,
-      details: {
+      details: JSON.stringify({
         deletedBy: req.user.username,
         userRole: deletedUser.role,
         username: deletedUser.username
-      },
+      }),
       ipAddress: req.ip,
       userAgent: req.get('User-Agent')
     });

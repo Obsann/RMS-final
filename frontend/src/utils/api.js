@@ -140,6 +140,27 @@ export function escalateRequest(id, note) {
     return api(`/requests/${id}/escalate`, { method: 'POST', body: JSON.stringify({ note }) });
 }
 
+// Upload a file (multipart/form-data — skips JSON Content-Type)
+export async function uploadFile(file) {
+    const token = localStorage.getItem('rms_token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_BASE}/uploads`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+        const err = new Error(data.message || `Upload failed: ${res.status}`);
+        err.status = res.status;
+        throw err;
+    }
+    return data;
+}
+
 // ── Jobs ────────────────────────────────────────────────────────────────────
 
 export const getJobs = async (query = '') => {

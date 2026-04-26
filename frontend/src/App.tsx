@@ -46,6 +46,8 @@ import ResidentRequests from './pages/resident/Requests';
 import ResidentProfile from './pages/resident/Profile';
 import ResidentDigitalID from './pages/resident/DigitalID';
 import ResidentNotifications from './pages/resident/Notifications';
+import ResidentServiceHub from './pages/resident/ServiceHub';
+import ResidentMyRequests from './pages/resident/MyRequests';
 
 import { Toaster } from 'sonner';
 
@@ -116,6 +118,8 @@ const router = createBrowserRouter([
 
   // Resident Routes
   { path: '/resident/dashboard', element: <AuthGuard allowedRoles={['resident']}><ResidentDashboard /></AuthGuard> },
+  { path: '/resident/services', element: <AuthGuard allowedRoles={['resident']}><ResidentServiceHub /></AuthGuard> },
+  { path: '/resident/my-requests', element: <AuthGuard allowedRoles={['resident']}><ResidentMyRequests /></AuthGuard> },
   { path: '/resident/requests', element: <AuthGuard allowedRoles={['resident']}><ResidentRequests /></AuthGuard> },
   { path: '/resident/profile', element: <AuthGuard allowedRoles={['resident']}><ResidentProfile /></AuthGuard> },
   { path: '/resident/digital-id', element: <AuthGuard allowedRoles={['resident']}><ResidentDigitalID /></AuthGuard> },

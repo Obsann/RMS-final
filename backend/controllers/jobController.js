@@ -348,5 +348,6 @@ module.exports = {
     updateJob,
     assignJob,
     deleteJob,
-    getJobStats
+    getJobStats,
+    autoAssignJob
 };

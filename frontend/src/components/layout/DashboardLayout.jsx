@@ -109,8 +109,8 @@ export default function DashboardLayout({ children }) {
 
   const residentMenuItems = [
     { labelKey: 'dashboard', icon: <Home className="w-5 h-5" />, path: '/resident/dashboard' },
-    { labelKey: 'myRequests', icon: <ClipboardList className="w-5 h-5" />, path: '/resident/requests' },
-    { labelKey: 'digitalId', icon: <IdCard className="w-5 h-5" />, path: '/resident/digital-id' },
+    { labelKey: 'Services', icon: <Building2 className="w-5 h-5" />, path: '/resident/services' },
+    { labelKey: 'My Requests', icon: <ClipboardList className="w-5 h-5" />, path: '/resident/my-requests' },
     { labelKey: 'profile', icon: <Users className="w-5 h-5" />, path: '/resident/profile' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/resident/notifications' },
   ];

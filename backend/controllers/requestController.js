@@ -2,13 +2,22 @@ const logger = require('../config/logger');
 const Request = require('../models/Request');
 const Job = require('../models/Job');
 const User = require('../models/authmodel');
+const { autoAssignJob } = require('./jobController');
+
+// Maps categoryTag → employee jobCategory for auto-assignment
+const CATEGORY_TAG_TO_JOB_CATEGORY = {
+    'ID_REGISTRATION': 'ID & Registration',
+    'DOCUMENT_PROCESSING': 'Document Processing',
+    'COMPLAINT_HANDLING': 'Complaint Handling',
+};
 
 /**
  * Create a new request (resident)
+ * If a categoryTag is provided (Service Hub flow), auto-creates a Job for employees.
  */
 const createRequest = async (req, res) => {
     try {
-        const { type, category, subject, description, priority } = req.body;
+        const { type, category, subject, description, priority, serviceType, categoryTag, formData, attachments } = req.body;
 
         if (!type || !category || !subject || !description) {
             return res.status(400).json({
@@ -30,12 +39,60 @@ const createRequest = async (req, res) => {
             category,
             subject,
             description,
-            priority: priority || 'medium'
+            priority: priority || 'medium',
+            serviceType: serviceType || null,
+            categoryTag: categoryTag || null,
+            formData: formData || null,
+            attachments: attachments || [],
         });
+
+        let job = null;
+
+        // Service Hub flow: auto-create a Job for employees
+        if (categoryTag && CATEGORY_TAG_TO_JOB_CATEGORY[categoryTag]) {
+            const jobCategory = CATEGORY_TAG_TO_JOB_CATEGORY[categoryTag];
+
+            // Build a human-readable description from formData
+            let jobDescription = description;
+            if (formData && typeof formData === 'object') {
+                const details = Object.entries(formData)
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([k, v]) => `${k.replace(/([A-Z])/g, ' $1').trim()}: ${v}`)
+                    .join('\n');
+                if (details) {
+                    jobDescription += '\n\n--- Form Details ---\n' + details;
+                }
+            }
+
+            // Auto-assign to least-loaded matching employee
+            const assignedEmployee = await autoAssignJob(jobCategory);
+
+            job = await Job.create({
+                title: `${serviceType || category} — ${subject}`,
+                description: jobDescription,
+                category: jobCategory,
+                priority: priority || 'medium',
+                unit: user.unit || 'N/A',
+                sourceRequest: request._id,
+                createdBy: req.user.id,
+                assignedTo: assignedEmployee?._id || null,
+                assignedBy: assignedEmployee ? req.user.id : null,
+                assignedAt: assignedEmployee ? new Date() : null,
+                status: assignedEmployee ? 'assigned' : 'pending',
+            });
+
+            // Link the job back to the request
+            request.job = job._id;
+            if (assignedEmployee) {
+                request.status = 'in-progress';
+            }
+            await request.save();
+        }
 
         res.status(201).json({
             message: 'Request submitted successfully',
-            request
+            request,
+            job,
         });
     } catch (error) {
         logger.error('CreateRequest error:', error);
