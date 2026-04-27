@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { AuthContext } from '../../App';
 import { toast } from 'sonner';
 import { Loader2, Briefcase, AlertCircle, ChevronRight, Home } from 'lucide-react';
-import { getMeAPI, api } from '../../utils/api';
+import { getMeAPI, api, getJobs, updateJobStatus, escalateRequest } from '../../utils/api';
 
 // Dashboard components
 import EmployeeHeader from '../../components/dashboard/EmployeeHeader';
@@ -22,30 +22,41 @@ const CATEGORIES = {
   'IT & Systems': { gradient: 'from-slate-600 to-gray-500' },
 };
 
-// ── Data endpoints per category ─────────────────────────────────────────────
-const CATEGORY_ENDPOINTS = {
-  'ID & Registration': '/digital-id?limit=100',
-  'Document Processing': '/requests?limit=200',
-  'Resident Services': '/requests?limit=200',
-  'Complaint Handling': '/requests?limit=200',
-  'Records Management': '/requests?limit=200',
-  'IT & Systems': '/requests?limit=200',
-};
-
-function normalizeQueueItems(data, category) {
-  if (category === 'ID & Registration') {
-    return (data.digitalIds || []).map(d => ({
-      ...d,
-      _id: d._id,
-      subject: `Digital ID — ${d.user?.username || 'Unknown'}`,
-      category: 'ID Request',
-      priority: d.status === 'pending' ? 'high' : 'medium',
-      user: d.user,
-      status: d.status,
-      createdAt: d.createdAt,
-    }));
-  }
-  return data.requests || [];
+/**
+ * Normalize a Job (with populated sourceRequest) into a unified queue item.
+ * This is the key change: the queue is now JOB-based, not request-based.
+ */
+function normalizeJobToQueueItem(job) {
+  const req = job.sourceRequest || {};
+  const resident = req.resident || {};
+  return {
+    _id: job._id,
+    // Job fields
+    title: job.title,
+    description: job.description,
+    category: job.category,
+    priority: job.priority || req.priority || 'medium',
+    status: job.status,
+    createdAt: job.createdAt,
+    assignedAt: job.assignedAt,
+    dueDate: job.dueDate,
+    completionNotes: job.completionNotes,
+    // Source request fields (for TaskWorkArea formData display)
+    sourceRequestId: req._id || null,
+    subject: req.subject || job.title,
+    type: req.type,
+    serviceType: req.serviceType,
+    categoryTag: req.categoryTag,
+    formData: req.formData || null,
+    attachments: req.attachments || [],
+    requestStatus: req.status,
+    response: req.response || null,
+    isEscalated: req.isEscalated || false,
+    // Resident info
+    user: resident,
+    resident: resident,
+    unit: req.unit || resident.unit || '',
+  };
 }
 
 export default function EmployeeWorkspace() {
@@ -55,10 +66,10 @@ export default function EmployeeWorkspace() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Queue data
+  // Queue data — now jobs, not raw requests
   const [queueItems, setQueueItems] = useState([]);
+  const [allJobs, setAllJobs] = useState([]);
   const [queueLoading, setQueueLoading] = useState(false);
-  const [jobs, setJobs] = useState([]);
 
   // Selection
   const [selectedItem, setSelectedItem] = useState(null);
@@ -82,22 +93,19 @@ export default function EmployeeWorkspace() {
     })();
   }, []);
 
-  // ── Fetch Queue ───────────────────────────────────────────────────────────
+  // ── Fetch Queue (Job-based) ───────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
     if (!jobCategory) return;
     setQueueLoading(true);
     try {
-      const endpoint = CATEGORY_ENDPOINTS[jobCategory] || '/requests?limit=200';
-      const [queueData, jobData] = await Promise.allSettled([
-        api(endpoint),
-        api('/jobs'),
-      ]);
-      if (queueData.status === 'fulfilled') {
-        setQueueItems(normalizeQueueItems(queueData.value, jobCategory));
-      }
-      if (jobData.status === 'fulfilled') {
-        setJobs(jobData.value?.jobs || []);
-      }
+      // Fetch assigned jobs — the backend already filters to assignedTo=currentUser for employees
+      const data = await getJobs('limit=200');
+      const jobs = data?.jobs || [];
+      setAllJobs(jobs);
+
+      // Normalize jobs into queue items
+      const items = jobs.map(normalizeJobToQueueItem);
+      setQueueItems(items);
     } catch (err) {
       toast.error('Failed to load queue data');
     } finally {
@@ -145,20 +153,30 @@ export default function EmployeeWorkspace() {
 
     // Optimistic UI — update locally first
     const prevItems = queueItems;
-    const optimisticStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'in-progress';
+    const optimisticStatus = action === 'approve' ? 'completed' : action === 'reject' ? 'cancelled' : 'in-progress';
     setQueueItems(items => items.map(i => i._id === selectedItem._id ? { ...i, status: optimisticStatus } : i));
     setSelectedItem(prev => prev ? { ...prev, status: optimisticStatus } : prev);
-    toast.success(`Item ${action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'escalated'} successfully`);
 
     try {
-      const id = selectedItem._id;
-      if (jobCategory === 'ID & Registration') {
-        if (action === 'approve') await api(`/digital-id/${id}/approve`, { method: 'POST' });
-        else if (action === 'reject') await api(`/digital-id/${id}/revoke`, { method: 'POST', body: JSON.stringify({ reason: reason || 'Rejected' }) });
-      } else {
-        if (action === 'approve') await api(`/requests/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'completed' }) });
-        else if (action === 'reject') await api(`/requests/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'rejected', rejectionReason: reason }) });
-        else if (action === 'escalate') await api(`/requests/${id}`, { method: 'PUT', body: JSON.stringify({ priority: 'high', status: 'in-progress' }) });
+      const jobId = selectedItem._id;
+      const sourceRequestId = selectedItem.sourceRequestId;
+
+      if (action === 'approve') {
+        // Update job → cascades to request via backend
+        await updateJobStatus(jobId, 'completed', reason || 'Approved by employee');
+        toast.success('Request approved — resident will be notified');
+      } else if (action === 'reject') {
+        // Update job to cancelled → cascades to request
+        await updateJobStatus(jobId, 'cancelled', `Rejected: ${reason || 'Not approved'}`);
+        toast.success('Request rejected');
+      } else if (action === 'escalate') {
+        // Escalate the source request to admin
+        if (sourceRequestId) {
+          await escalateRequest(sourceRequestId, reason || 'Requires admin review');
+          toast.success('Request escalated to admin');
+        } else {
+          toast.error('No linked request to escalate');
+        }
       }
     } catch (err) {
       // Rollback optimistic update
@@ -171,7 +189,7 @@ export default function EmployeeWorkspace() {
     } finally {
       setSubmitting(false);
     }
-  }, [selectedItem, queueItems, jobCategory]);
+  }, [selectedItem, queueItems]);
 
   // ── Global Search ─────────────────────────────────────────────────────────
   const handleGlobalSearch = useCallback(async (query) => {
@@ -218,11 +236,11 @@ export default function EmployeeWorkspace() {
 
   // ── Session Stats ─────────────────────────────────────────────────────────
   const sessionStats = useMemo(() => {
-    const completed = [...jobs, ...queueItems].filter(i => i.status === 'completed' || i.status === 'approved' || i.status === 'resolved').length;
-    const inProgress = [...jobs, ...queueItems].filter(i => i.status === 'in-progress' || i.status === 'processing').length;
-    const pending = queueItems.filter(i => i.status === 'pending' || i.status === 'assigned').length;
+    const completed = queueItems.filter(i => i.status === 'completed').length;
+    const inProgress = queueItems.filter(i => i.status === 'in-progress' || i.status === 'assigned').length;
+    const pending = queueItems.filter(i => i.status === 'pending').length;
     return { completed, inProgress, pending, avgTime: '~8 min' };
-  }, [jobs, queueItems]);
+  }, [queueItems]);
 
   // ── Loading / No Category ─────────────────────────────────────────────────
   if (loading) {
@@ -316,7 +334,7 @@ export default function EmployeeWorkspace() {
         </div>
 
         {/* 3. Performance Metrics Table */}
-        <PerformanceMetrics jobs={jobs} requests={queueItems} />
+        <PerformanceMetrics jobs={allJobs} requests={queueItems} />
 
         {/* Keyboard shortcut hint */}
         <div className="text-center py-2">

@@ -7,8 +7,9 @@ import {
   IdCard, Award, Shield, MessageCircle,
   ChevronRight, Home, Sparkles, ArrowRight, ArrowLeft,
   UserPlus, RefreshCw, Baby, Heart, FileText,
-  Building2, Briefcase, Calendar, AlertTriangle,
+  Building2, Briefcase, Calendar, AlertTriangle, Lock
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Icon lookup
 const ICONS = {
@@ -64,8 +65,24 @@ export default function ServiceHub() {
   const navigate = useNavigate();
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [hasDigitalId, setHasDigitalId] = useState(false);
   const servicesRef = useRef(null);
   const formRef = useRef(null);
+
+  useEffect(() => {
+    const checkDigitalId = async () => {
+      try {
+        const { getMyDigitalId } = await import('../../utils/api');
+        const idData = await getMyDigitalId();
+        if (idData && idData.status !== 'none') {
+          setHasDigitalId(true);
+        }
+      } catch (e) {
+        // Ignored
+      }
+    };
+    checkDigitalId();
+  }, []);
 
   const selectedService = selectedServiceId ? getServiceById(selectedServiceId) : null;
   const activeGroup = activeGroupId ? SERVICE_GROUPS.find(g => g.id === activeGroupId) : null;
@@ -242,23 +259,44 @@ export default function ServiceHub() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeGroup.services.map((service) => {
                 const ServiceIcon = ICONS[service.icon] || FileText;
+                const isNewIdLocked = service.id === 'new_id_application' && hasDigitalId;
 
                 return (
                   <button
                     key={service.id}
-                    onClick={() => setSelectedServiceId(service.id)}
-                    className="group text-left bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-200"
+                    onClick={() => {
+                      if (isNewIdLocked) {
+                        toast.info('You already have a Digital ID application on file. For updates or replacements, use ID Renewal or check Digital ID under your profile.', { duration: 5000 });
+                        return;
+                      }
+                      setSelectedServiceId(service.id);
+                    }}
+                    className={`group text-left p-5 rounded-xl border transition-all duration-200 ${
+                      isNewIdLocked 
+                        ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-75' 
+                        : 'bg-white border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 hover:bg-blue-50/30'
+                    }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-xl ${activeCategoryCard.bgLight} flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors`}>
-                        <ServiceIcon className={`w-6 h-6 ${activeCategoryCard.textColor} group-hover:text-white transition-colors`} />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isNewIdLocked 
+                          ? 'bg-gray-100 text-gray-400' 
+                          : `${activeCategoryCard.bgLight} group-hover:bg-blue-600 group-hover:text-white`
+                      }`}>
+                        {isNewIdLocked ? (
+                           <Lock className="w-6 h-6" />
+                        ) : (
+                           <ServiceIcon className={`w-6 h-6 ${activeCategoryCard.textColor} group-hover:text-white transition-colors`} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 mb-1">{service.label}</p>
-                        <p className="text-xs text-gray-500 line-clamp-2">{service.description}</p>
-                        <div className="flex items-center gap-1 mt-3 text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                          Start Application <ArrowRight className="w-3 h-3" />
-                        </div>
+                        <p className={`text-sm font-semibold mb-1 ${isNewIdLocked ? 'text-gray-500' : 'text-gray-900'}`}>{service.label}</p>
+                        <p className="text-xs text-gray-500 line-clamp-2">{isNewIdLocked ? 'Application already submitted. Please use ID Renewal instead.' : service.description}</p>
+                        {!isNewIdLocked && (
+                          <div className="flex items-center gap-1 mt-3 text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            Start Application <ArrowRight className="w-3 h-3" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>

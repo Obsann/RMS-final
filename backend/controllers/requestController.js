@@ -81,10 +81,11 @@ const createRequest = async (req, res) => {
                 status: assignedEmployee ? 'assigned' : 'pending',
             });
 
-            // Link the job back to the request
+            // Link the job back to the request + track assigned employee
             request.job = job._id;
             if (assignedEmployee) {
                 request.status = 'in-progress';
+                request.assignedEmployee = assignedEmployee._id;
             }
             await request.save();
         }
@@ -101,15 +102,15 @@ const createRequest = async (req, res) => {
 };
 
 /**
- * Get requests - residents see their own, admins see all
+ * Get requests - residents see their own, admins see all or escalated, employees see all
  */
 const getRequests = async (req, res) => {
     try {
-        const { type, status, page = 1, limit = 20, escalatedOnly } = req.query;
+        const { type, status, page = 1, limit = 20, escalatedOnly, categoryTag, user: userId } = req.query;
 
         const query = {};
 
-        // Admin only sees escalated requests (forwarded by employees)
+        // Admin: default to escalated-only, but allow escalatedOnly=false for pipeline view
         if (req.user.role === 'admin') {
             if (escalatedOnly !== 'false') {
                 query.isEscalated = true;
@@ -124,6 +125,8 @@ const getRequests = async (req, res) => {
 
         if (type) query.type = type;
         if (status) query.status = status;
+        if (categoryTag) query.categoryTag = categoryTag;
+        if (userId) query.resident = userId;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -131,6 +134,8 @@ const getRequests = async (req, res) => {
             Request.find(query)
                 .populate('resident', 'username email unit phone')
                 .populate('escalatedBy', 'username email')
+                .populate('assignedEmployee', 'username email jobCategory')
+                .populate('job')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit)),
@@ -161,7 +166,9 @@ const getRequestById = async (req, res) => {
 
         const request = await Request.findById(id)
             .populate('resident', 'username email unit phone')
-            .populate('response.respondedBy', 'username');
+            .populate('response.respondedBy', 'username')
+            .populate('assignedEmployee', 'username email jobCategory')
+            .populate('job');
 
         if (!request) {
             return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
@@ -170,6 +177,7 @@ const getRequestById = async (req, res) => {
         // Check authorization
         if (req.user.role !== 'admin' &&
             req.user.role !== 'special-employee' &&
+            req.user.role !== 'employee' &&
             request.resident._id.toString() !== req.user.id) {
             return res.status(403).json({ error: 'Forbidden', message: 'Access denied' });
         }
@@ -183,13 +191,14 @@ const getRequestById = async (req, res) => {
 
 /**
  * Update request status (admin/employee)
+ * Cascades status to linked Job for bidirectional sync.
  */
 const updateRequestStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, response } = req.body;
+        const { status, response, rejectionReason } = req.body;
 
-        if (!['pending', 'in-progress', 'completed', 'cancelled'].includes(status)) {
+        if (!['pending', 'in-progress', 'completed', 'rejected', 'cancelled'].includes(status)) {
             return res.status(400).json({
                 error: 'Bad Request',
                 message: 'Invalid status'
@@ -217,6 +226,23 @@ const updateRequestStatus = async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
         }
 
+        // ── Bidirectional sync: cascade to linked Job ──
+        if (request.job) {
+            const jobStatusMap = {
+                'completed': 'completed',
+                'rejected': 'cancelled',
+                'in-progress': 'in-progress',
+                'cancelled': 'cancelled',
+            };
+            const newJobStatus = jobStatusMap[status];
+            if (newJobStatus) {
+                const jobUpdate = { status: newJobStatus };
+                if (newJobStatus === 'completed') jobUpdate.completedAt = new Date();
+                if (rejectionReason) jobUpdate.completionNotes = `Rejected: ${rejectionReason}`;
+                await Job.findByIdAndUpdate(request.job, jobUpdate);
+            }
+        }
+
         res.json({ message: 'Request updated', request });
     } catch (error) {
         logger.error('UpdateRequestStatus error:', error);
@@ -235,13 +261,6 @@ const convertToJob = async (req, res) => {
         const request = await Request.findById(id);
         if (!request) {
             return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
-        }
-
-        if (request.type !== 'maintenance') {
-            return res.status(400).json({
-                error: 'Bad Request',
-                message: 'Only maintenance requests can be converted to jobs'
-            });
         }
 
         if (request.job) {
@@ -270,6 +289,7 @@ const convertToJob = async (req, res) => {
         // Update request with job reference
         request.job = job._id;
         request.status = 'in-progress';
+        if (assignedTo) request.assignedEmployee = assignedTo;
         await request.save();
 
         res.status(201).json({
@@ -293,6 +313,11 @@ const deleteRequest = async (req, res) => {
         const request = await Request.findByIdAndDelete(id);
         if (!request) {
             return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
+        }
+
+        // Also delete linked job if exists
+        if (request.job) {
+            await Job.findByIdAndDelete(request.job);
         }
 
         res.json({ message: 'Request deleted successfully' });
@@ -337,6 +362,37 @@ const escalateRequest = async (req, res) => {
     }
 };
 
+/**
+ * Get request statistics for admin pipeline view
+ */
+const getRequestStats = async (req, res) => {
+    try {
+        const [total, pending, inProgress, completed, rejected, escalated] = await Promise.all([
+            Request.countDocuments(),
+            Request.countDocuments({ status: 'pending' }),
+            Request.countDocuments({ status: 'in-progress' }),
+            Request.countDocuments({ status: 'completed' }),
+            Request.countDocuments({ status: 'rejected' }),
+            Request.countDocuments({ isEscalated: true, status: { $nin: ['completed', 'rejected', 'cancelled'] } }),
+        ]);
+
+        // By category
+        const byCategory = await Request.aggregate([
+            { $group: { _id: '$categoryTag', count: { $sum: 1 }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } } } },
+            { $sort: { count: -1 } }
+        ]);
+
+        res.json({
+            total,
+            byStatus: { pending, inProgress, completed, rejected, escalated },
+            byCategory,
+        });
+    } catch (error) {
+        logger.error('GetRequestStats error:', error);
+        res.status(500).json({ error: 'Server Error', message: error.message });
+    }
+};
+
 module.exports = {
     createRequest,
     getRequests,
@@ -344,5 +400,6 @@ module.exports = {
     updateRequestStatus,
     convertToJob,
     deleteRequest,
-    escalateRequest
+    escalateRequest,
+    getRequestStats
 };

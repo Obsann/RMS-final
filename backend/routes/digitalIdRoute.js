@@ -44,11 +44,11 @@ router.get('/me', (req, res, next) => {
     next();
 }, getDigitalIdByUser);
 
-// Approve digital ID (admin only)
-router.post('/:id/approve', adminAuth, approveDigitalId);
+// Approve digital ID (admin/staff)
+router.post('/:id/approve', staffAuth, approveDigitalId);
 
-// Revoke digital ID (admin only)
-router.post('/:id/revoke', adminAuth, revokeDigitalId);
+// Revoke digital ID (admin/staff)
+router.post('/:id/revoke', staffAuth, revokeDigitalId);
 
 // Update digital ID (admin/special-employee)
 router.put('/:id', staffAuth, updateDigitalId);

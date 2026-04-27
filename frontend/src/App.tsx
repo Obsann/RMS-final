@@ -22,6 +22,7 @@ import AdminDigitalID from './pages/admin/DigitalID';
 import AdminNotifications from './pages/admin/Notifications';
 import AdminReports from './pages/admin/Reports';
 import AdminProfile from './pages/admin/Profile';
+import AdminServicePipeline from './pages/admin/ServicePipeline';
 
 // Special Employee Pages
 import SpecialEmployeeDashboard from './pages/special-employee/Dashboard';
@@ -98,6 +99,7 @@ const router = createBrowserRouter([
   { path: '/admin/notifications', element: <AuthGuard allowedRoles={['admin']}><AdminNotifications /></AuthGuard> },
   { path: '/admin/reports', element: <AuthGuard allowedRoles={['admin']}><AdminReports /></AuthGuard> },
   { path: '/admin/profile', element: <AuthGuard allowedRoles={['admin']}><AdminProfile /></AuthGuard> },
+  { path: '/admin/service-pipeline', element: <AuthGuard allowedRoles={['admin']}><AdminServicePipeline /></AuthGuard> },
 
   // Special Employee Routes
   { path: '/special-employee/dashboard', element: <AuthGuard allowedRoles={['special-employee']}><SpecialEmployeeDashboard /></AuthGuard> },

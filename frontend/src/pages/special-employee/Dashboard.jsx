@@ -9,6 +9,7 @@ import {
 import StatusBadge from '../../components/ui/StatusBadge';
 import { useNavigate } from 'react-router-dom';
 import { getReports, getRequests, getDigitalIds } from '../../utils/api';
+import { toast } from 'sonner';
 
 function LiveClock() {
   const [time, setTime] = useState(new Date());
@@ -73,7 +74,7 @@ export default function SpecialEmployeeDashboard() {
           const ids = idRes.value?.digitalIds || idRes.value || [];
           setPerf(p => ({ ...p, ids: ids.length }));
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { toast.error(e.message || 'Failed to load dashboard data'); }
       finally { setLoading(false); }
     };
     load();

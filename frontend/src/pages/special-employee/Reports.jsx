@@ -66,7 +66,7 @@ export default function SpecialEmployeeReports() {
         if (reqRes.status === 'fulfilled') setRequests(reqRes.value?.requests || reqRes.value || []);
         if (jobRes.status === 'fulfilled') setJobs(jobRes.value?.jobs || jobRes.value || []);
         if (idRes.status === 'fulfilled') setDigitalIds(idRes.value?.digitalIds || idRes.value || []);
-      } catch (e) { console.error(e); }
+      } catch (e) { toast.error(e.message || 'Failed to load reports data'); }
       finally { setLoading(false); }
     };
     load();

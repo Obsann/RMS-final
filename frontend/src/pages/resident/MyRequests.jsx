@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import RequestTracker from '../../components/services/RequestTracker';
@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 import {
   Search, Filter, ChevronDown, ChevronUp, ChevronRight, Home,
   Briefcase, Clock, Loader2, CheckCircle, AlertTriangle, FileText,
-  RefreshCw, ArrowRight, Paperclip,
+  RefreshCw, ArrowRight, Paperclip, XCircle, UserCog,
 } from 'lucide-react';
 
-const STATUS_OPTIONS = ['all', 'pending', 'in-progress', 'completed', 'cancelled'];
+const STATUS_OPTIONS = ['all', 'pending', 'in-progress', 'completed', 'rejected', 'cancelled'];
 
 export default function MyRequests() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export default function MyRequests() {
   const [expandedId, setExpandedId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = async (showToast = false) => {
+  const fetchData = useCallback(async (showToast = false) => {
     try {
       if (showToast) setRefreshing(true);
       else setLoading(true);
@@ -35,9 +35,22 @@ export default function MyRequests() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Auto-refresh on window focus
+  useEffect(() => {
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchData]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => fetchData(), 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // Stats
   const stats = useMemo(() => ({
@@ -45,6 +58,7 @@ export default function MyRequests() {
     pending: requests.filter(r => r.status === 'pending').length,
     inProgress: requests.filter(r => r.status === 'in-progress' || r.status === 'assigned').length,
     completed: requests.filter(r => r.status === 'completed').length,
+    rejected: requests.filter(r => r.status === 'rejected' || r.status === 'cancelled').length,
   }), [requests]);
 
   // Filter & search
@@ -68,6 +82,13 @@ export default function MyRequests() {
   };
 
   const getRefId = (id) => `#${(id || '').slice(-6).toUpperCase()}`;
+
+  const getStatusColor = (status) => {
+    if (status === 'completed') return 'text-green-600';
+    if (status === 'rejected' || status === 'cancelled') return 'text-red-600';
+    if (status === 'in-progress') return 'text-blue-600';
+    return 'text-yellow-600';
+  };
 
   return (
     <DashboardLayout>
@@ -106,12 +127,13 @@ export default function MyRequests() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
             { label: 'Total Requests', value: stats.total, icon: FileText, color: 'text-gray-600', bg: 'bg-gray-50' },
             { label: 'Pending', value: stats.pending, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'In Progress', value: stats.inProgress, icon: Loader2, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'Rejected', value: stats.rejected, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
               <div className="flex items-center gap-3">
@@ -142,7 +164,7 @@ export default function MyRequests() {
               />
             </div>
             {/* Status filter */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               {STATUS_OPTIONS.map((s) => (
                 <button
                   key={s}
@@ -195,7 +217,7 @@ export default function MyRequests() {
                             )}
                           </div>
                           <p className="text-sm font-semibold text-gray-900 truncate">{req.subject}</p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
                             <span className="bg-gray-100 px-2 py-0.5 rounded-md">{getDepartment(req)}</span>
                             {req.priority && (
                               <span className={`px-2 py-0.5 rounded-md capitalize ${
@@ -209,6 +231,13 @@ export default function MyRequests() {
                             {req.attachments?.length > 0 && (
                               <span className="flex items-center gap-1 text-gray-400">
                                 <Paperclip className="w-3 h-3" /> {req.attachments.length}
+                              </span>
+                            )}
+                            {/* Assigned employee indicator */}
+                            {req.assignedEmployee && (
+                              <span className="flex items-center gap-1 text-emerald-600">
+                                <UserCog className="w-3 h-3" />
+                                <span className="font-medium">{req.assignedEmployee.username || 'Employee'}</span>
                               </span>
                             )}
                           </div>
@@ -240,6 +269,34 @@ export default function MyRequests() {
                           <RequestTracker status={req.status} />
                         </div>
 
+                        {/* Assigned Employee */}
+                        {req.assignedEmployee && (
+                          <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <UserCog className="w-4 h-4 text-emerald-600" />
+                            <span className="text-sm text-emerald-800">
+                              Being handled by: <strong>{req.assignedEmployee.username}</strong>
+                              {req.assignedEmployee.jobCategory && (
+                                <span className="text-emerald-600 text-xs ml-1">({req.assignedEmployee.jobCategory})</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Rejection reason */}
+                        {(req.status === 'rejected' || req.status === 'cancelled') && (
+                          <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                            <div className="flex items-center gap-2 mb-1">
+                              <XCircle className="w-4 h-4 text-red-600" />
+                              <p className="text-xs font-medium text-red-800">
+                                {req.status === 'rejected' ? 'Request Rejected' : 'Request Cancelled'}
+                              </p>
+                            </div>
+                            {req.response?.message && (
+                              <p className="text-sm text-red-700 mt-1">{req.response.message}</p>
+                            )}
+                          </div>
+                        )}
+
                         {/* Description */}
                         <div>
                           <p className="text-xs font-medium text-gray-500 mb-1">Description</p>
@@ -267,7 +324,7 @@ export default function MyRequests() {
                         )}
 
                         {/* Response */}
-                        {req.response?.message && (
+                        {req.response?.message && req.status !== 'rejected' && req.status !== 'cancelled' && (
                           <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                             <p className="text-xs font-medium text-blue-900 mb-1">Response from Administration:</p>
                             <p className="text-sm text-blue-800">{req.response.message}</p>

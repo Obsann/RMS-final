@@ -3,6 +3,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, IdCard, User, FileText, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMeAPI, getMyDigitalId } from '../../utils/api';
+import { toast } from 'sonner';
 
 const ANNOUNCEMENTS_PER_PAGE = 2;
 
@@ -25,7 +26,7 @@ export default function ResidentDashboard() {
         const meRes = await getMeAPI();
         setUserData(meRes.user || meRes);
       } catch (err) {
-        console.error('Failed to load dashboard data:', err);
+        toast.error(err.message || 'Failed to load dashboard data');
       }
       try {
         const did = await getMyDigitalId();

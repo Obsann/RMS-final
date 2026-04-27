@@ -51,7 +51,7 @@ const requestSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['pending', 'in-progress', 'completed', 'cancelled'],
+            enum: ['pending', 'in-progress', 'completed', 'rejected', 'cancelled'],
             default: 'pending'
         },
         // Attachments
@@ -82,6 +82,11 @@ const requestSchema = new mongoose.Schema(
         escalationNote: {
             type: String,
             maxlength: [1000, 'Escalation note cannot exceed 1000 characters']
+        },
+        // Assigned employee (set during auto-assign)
+        assignedEmployee: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'kebeleUser'
         },
         // If converted to a job
         job: {

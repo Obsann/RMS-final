@@ -6,7 +6,7 @@ const STEP_ICONS = [Clock, Loader2, Package];
 
 export default React.memo(function RequestTracker({ status = 'pending', compact = false }) {
   const currentStep = STATUS_TO_STEP_INDEX[status] ?? 0;
-  const isCancelled = status === 'cancelled';
+  const isCancelled = status === 'cancelled' || status === 'rejected';
 
   if (isCancelled) {
     return (
@@ -14,7 +14,7 @@ export default React.memo(function RequestTracker({ status = 'pending', compact 
         <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
           <XCircle className="w-4 h-4 text-red-500" />
         </div>
-        <span className="text-xs font-semibold text-red-600">Cancelled</span>
+        <span className="text-xs font-semibold text-red-600">{status === 'rejected' ? 'Rejected' : 'Cancelled'}</span>
       </div>
     );
   }

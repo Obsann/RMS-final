@@ -6,7 +6,8 @@ const {
     updateRequestStatus,
     convertToJob,
     deleteRequest,
-    escalateRequest
+    escalateRequest,
+    getRequestStats
 } = require('../controllers/requestController');
 const authMiddleware = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
@@ -20,6 +21,9 @@ router.use(authMiddleware);
 
 // Create request (any authenticated user) with validation
 router.post('/', createRequestValidator, createRequest);
+
+// Get request statistics (admin only)
+router.get('/stats', adminAuth, getRequestStats);
 
 // Get all requests (filtered by role)
 router.get('/', getRequests);
@@ -40,3 +44,4 @@ router.post('/:id/convert-to-job', adminAuth, convertToJob);
 router.delete('/:id', adminAuth, deleteRequest);
 
 module.exports = router;
+

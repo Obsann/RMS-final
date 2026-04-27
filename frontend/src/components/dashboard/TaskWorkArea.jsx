@@ -346,6 +346,32 @@ const TASK_COMPONENT_MAP = {
   'IT & Systems': RecordsModule,
 };
 
+// ── Form Data Panel (shows resident's submitted data) ────────────────────────
+function FormDataPanel({ formData, serviceType }) {
+  if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) return null;
+  const entries = Object.entries(formData).filter(([k, v]) => v != null && v !== '' && !k.startsWith('_'));
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl mb-4">
+      <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <FileText className="w-3.5 h-3.5" />
+        {serviceType ? `${serviceType} — Submitted Details` : 'Submitted Form Data'}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {entries.map(([key, val]) => (
+          <div key={key} className="p-2 bg-white rounded-lg border border-indigo-100">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+              {key.replace(/([A-Z])/g, ' $1').trim()}
+            </span>
+            <p className="text-sm font-medium text-gray-900 mt-0.5">{String(val)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main TaskWorkArea ────────────────────────────────────────────────────────
 export default function TaskWorkArea({ item, jobCategory, resident, onAction, submitting }) {
   const Module = TASK_COMPONENT_MAP[jobCategory] || ComplaintModule;
@@ -371,6 +397,14 @@ export default function TaskWorkArea({ item, jobCategory, resident, onAction, su
     );
   }
 
+  const statusBadge = (() => {
+    const s = item.status || 'pending';
+    if (s === 'completed' || s === 'approved') return 'bg-green-50 text-green-700 border-green-200';
+    if (s === 'cancelled') return 'bg-red-50 text-red-700 border-red-200';
+    if (s === 'pending') return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  })();
+
   return (
     <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" id="task-work-area">
       {/* Header */}
@@ -380,14 +414,20 @@ export default function TaskWorkArea({ item, jobCategory, resident, onAction, su
             <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center"><FileText className="w-3.5 h-3.5 text-white" /></div>
             <div>
               <h3 className="text-sm font-bold text-gray-900">{item.subject || item.title || 'Task'}</h3>
-              <p className="text-[10px] text-gray-500">{item.category || jobCategory} · #{(item._id || '').slice(-6).toUpperCase()}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[10px] text-gray-500">{item.category || jobCategory} · #{(item._id || '').slice(-6).toUpperCase()}</p>
+                {item.serviceType && (
+                  <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">{item.serviceType}</span>
+                )}
+                {item.isEscalated && (
+                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⚠ ESCALATED</span>
+                )}
+              </div>
             </div>
           </div>
-          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase ${
-            item.status === 'completed' || item.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
-            item.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-            'bg-blue-50 text-blue-700 border-blue-200'
-          }`}>{(item.status || 'pending').replace('-', ' ')}</span>
+          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase ${statusBadge}`}>
+            {(item.status || 'pending').replace('-', ' ')}
+          </span>
         </div>
       </div>
 
@@ -401,9 +441,13 @@ export default function TaskWorkArea({ item, jobCategory, resident, onAction, su
         {/* Description */}
         {item.description && (
           <div className="mb-4 p-3 bg-gray-50 border border-gray-100 rounded-xl">
-            <p className="text-xs text-gray-600">{item.description}</p>
+            <p className="text-xs text-gray-600 whitespace-pre-wrap">{item.description}</p>
           </div>
         )}
+
+        {/* Form Data from source request */}
+        <FormDataPanel formData={item.formData} serviceType={item.serviceType} />
+
         {/* Role-specific module */}
         <Module item={item} resident={resident} onAction={onAction} submitting={submitting} />
       </div>

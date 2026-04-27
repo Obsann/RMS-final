@@ -167,6 +167,10 @@ export const getJobs = async (query = '') => {
     return api(`/jobs${query ? `?${query}` : ''}`);
 };
 
+export function getJobById(id) {
+    return api(`/jobs/${id}`);
+}
+
 export function createJob(data) {
     return api('/jobs', { method: 'POST', body: JSON.stringify(data) });
 }
@@ -178,6 +182,14 @@ export function updateJob(id, data) {
 export const updateJobStatus = async (id, status, notes) => {
     return api(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify({ status, completionNotes: notes }) });
 };
+
+export function assignJobToEmployee(jobId, employeeId) {
+    return api(`/jobs/${jobId}/assign`, { method: 'POST', body: JSON.stringify({ employeeId }) });
+}
+
+export function getJobStats() {
+    return api('/jobs/stats');
+}
 
 // ── Notifications ───────────────────────────────────────────────────────────
 
@@ -249,6 +261,12 @@ export function updateHousehold(id, data) {
 
 export function getReports(path = '') {
     return api(`/reports${path}`);
+}
+
+// ── Request Stats (admin pipeline) ──────────────────────────────────────────
+
+export function getRequestStats() {
+    return api('/requests/stats');
 }
 
 // ── Audit Logs ──────────────────────────────────────────────────────────────

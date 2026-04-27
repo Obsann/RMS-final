@@ -14,6 +14,8 @@ export default function EmployeeDigitalID() {
 
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -43,19 +45,17 @@ export default function EmployeeDigitalID() {
         setSubmitting(true);
         try {
             const token = localStorage.getItem('rms_token');
-            // We use the same update pattern as admin, but shift status to 'verified'
-            const res = await fetch(`/api/digital-id/${req._id}/status`, {
-                method: 'PUT',
+            const res = await fetch(`/api/digital-id/${req._id}/approve`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: 'verified' })
+                }
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Verification failed');
+            if (!res.ok) throw new Error(data.message || 'Verification & Issuance failed');
 
-            toast.success('Resident information verified and sent to Admin');
+            toast.success('Resident information verified and ID issued successfully!');
             setShowDetailModal(false);
             fetchData();
         } catch (error) {
@@ -65,26 +65,31 @@ export default function EmployeeDigitalID() {
         }
     };
 
-    const handleReject = async (req) => {
-        const reason = window.prompt("Enter reason for rejection (e.g., Blur photo, invalid document):");
-        if (!reason && reason !== '') return;
+    const handleReject = async (e) => {
+        e.preventDefault();
+        if (!rejectReason.trim()) {
+            toast.error('Please provide a rejection reason');
+            return;
+        }
 
         setSubmitting(true);
         try {
             const token = localStorage.getItem('rms_token');
-            const res = await fetch(`/api/digital-id/${req._id}/revoke`, {
-                method: 'PUT',
+            const res = await fetch(`/api/digital-id/${selectedRequest._id}/revoke`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ reason: reason || 'Information verification failed' })
+                body: JSON.stringify({ reason: rejectReason })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Rejection failed');
 
             toast.success('Request rejected.');
+            setShowRejectModal(false);
             setShowDetailModal(false);
+            setRejectReason('');
             fetchData();
         } catch (error) {
             toast.error(error.message);
@@ -101,7 +106,6 @@ export default function EmployeeDigitalID() {
                     <p className="text-gray-600 mt-1">Review applicant details and documents before Admin approval.</p>
                 </div>
 
-                {/* Info card */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex items-start gap-4">
                     <div className="p-3 bg-blue-100 text-blue-600 rounded-full shrink-0">
                         <IdCard className="w-6 h-6" />
@@ -111,7 +115,7 @@ export default function EmployeeDigitalID() {
                         <p className="text-sm text-gray-700 leading-relaxed">
                             As an employee, your job is to <strong className="text-gray-900">verify the truthfulness</strong> of the resident's provided information.
                             Check their uploaded passport photo and birth certificate. Make sure their demographics match the documents.
-                            Once you click "Verify", it will be forwarded to the Admin for final legal approval.
+                            Once you click "Verify & Issue", the Digital ID will be officially generated and assigned to the resident.
                         </p>
                     </div>
                 </div>
@@ -270,14 +274,14 @@ export default function EmployeeDigitalID() {
                                         <button
                                             disabled={submitting}
                                             onClick={() => handleVerify(selectedRequest)}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 transition-colors"
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 transition-colors"
                                         >
                                             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-                                            Verify & Send to Admin
+                                            Verify & Issue ID
                                         </button>
                                         <button
                                             disabled={submitting}
-                                            onClick={() => handleReject(selectedRequest)}
+                                            onClick={() => setShowRejectModal(true)}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 font-medium disabled:opacity-50 transition-colors"
                                         >
                                             <XCircle className="w-5 h-5" /> Reject
@@ -291,6 +295,44 @@ export default function EmployeeDigitalID() {
                             </div>
                         </div>
                     )}
+                </Modal>
+
+                {/* Reject Modal */}
+                <Modal isOpen={showRejectModal} onClose={() => setShowRejectModal(false)} title="Reject ID Application" size="sm">
+                    <form onSubmit={handleReject} className="space-y-4">
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-sm text-red-800 flex items-start gap-2">
+                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                            <p>Provide a clear reason for rejection. This will be visible to the resident so they can correct the issue.</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Reason *</label>
+                            <textarea
+                                required
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 resize-none"
+                                placeholder="E.g., Blurred photo, invalid birth certificate, mismatching name..."
+                            />
+                        </div>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                Confirm Rejection
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowRejectModal(false)}
+                                className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
                 </Modal>
             </div>
         </DashboardLayout>

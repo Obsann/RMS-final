@@ -133,7 +133,11 @@ const getJobs = async (req, res) => {
             Job.find(query)
                 .populate('assignedTo', 'username email jobCategory')
                 .populate('createdBy', 'username')
-                .populate('sourceRequest', 'type subject')
+                .populate({
+                    path: 'sourceRequest',
+                    select: 'type subject description category categoryTag serviceType formData attachments status priority resident unit response isEscalated createdAt',
+                    populate: { path: 'resident', select: 'username email unit phone' }
+                })
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit)),
@@ -233,6 +237,23 @@ const updateJob = async (req, res) => {
         }
 
         await job.save();
+
+        // ── Bidirectional sync: cascade to linked Request ──
+        if (job.sourceRequest && status) {
+            const Request = require('../models/Request');
+            const requestStatusMap = {
+                'completed': 'completed',
+                'cancelled': 'cancelled',
+                'in-progress': 'in-progress',
+                'assigned': 'in-progress',
+            };
+            const newRequestStatus = requestStatusMap[status];
+            if (newRequestStatus) {
+                const reqUpdate = { status: newRequestStatus };
+                if (newRequestStatus === 'completed') reqUpdate.resolvedAt = new Date();
+                await Request.findByIdAndUpdate(job.sourceRequest, reqUpdate);
+            }
+        }
 
         res.json({ message: 'Job updated', job });
     } catch (error) {

@@ -13,6 +13,8 @@ export default function AdminDigitalID() {
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,15 +54,20 @@ export default function AdminDigitalID() {
     }
   };
 
-  const handleReject = async (req) => {
-    const reason = window.prompt("Enter rejection reason:");
-    if (!reason && reason !== '') return; // cancelled prompt
+  const handleReject = async (e) => {
+    e.preventDefault();
+    if (!rejectReason.trim()) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await revokeDigitalId(req._id, reason || 'Did not meet requirements');
+      await revokeDigitalId(selectedRequest._id, rejectReason);
       toast.success(`ID request rejected.`);
+      setShowRejectModal(false);
       setShowDetailModal(false);
+      setRejectReason('');
       fetchData();
     } catch (error) {
       toast.error(error.message || 'Failed to reject ID');
@@ -194,7 +201,7 @@ export default function AdminDigitalID() {
                               <button disabled={submitting} onClick={() => handleApprove(req)} className="p-2 hover:bg-green-100 rounded-lg text-green-600 transition-colors disabled:opacity-50 border border-transparent hover:border-green-200" title="Approve ID">
                                 <CheckCircle className="w-4 h-4" />
                               </button>
-                              <button disabled={submitting} onClick={() => handleReject(req)} className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors disabled:opacity-50 border border-transparent hover:border-red-200" title="Reject / Revoke">
+                              <button disabled={submitting} onClick={() => { setSelectedRequest(req); setShowRejectModal(true); }} className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors disabled:opacity-50 border border-transparent hover:border-red-200" title="Reject / Revoke">
                                 <XCircle className="w-4 h-4" />
                               </button>
                             </>
@@ -206,7 +213,7 @@ export default function AdminDigitalID() {
                             </span>
                           )}
                           {req.status === 'approved' && (
-                            <button disabled={submitting} onClick={() => handleReject(req)} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-sm font-medium transition-colors" title="Revoke ID">
+                            <button disabled={submitting} onClick={() => { setSelectedRequest(req); setShowRejectModal(true); }} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-50 text-red-600 rounded-lg border border-red-200 text-sm font-medium transition-colors" title="Revoke ID">
                               <XCircle className="w-3.5 h-3.5" /> Revoke
                             </button>
                           )}
@@ -302,16 +309,54 @@ export default function AdminDigitalID() {
               {selectedRequest.status === 'verified' && (
                 <>
                   <button disabled={submitting} onClick={() => handleApprove(selectedRequest)} className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 transition-colors">Approve ID Application</button>
-                  <button disabled={submitting} onClick={() => handleReject(selectedRequest)} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors">Reject Application</button>
+                  <button disabled={submitting} onClick={() => setShowRejectModal(true)} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors">Reject Application</button>
                 </>
               )}
               {selectedRequest.status === 'approved' && (
-                <button disabled={submitting} onClick={() => handleReject(selectedRequest)} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors">Revoke Digital ID</button>
+                <button disabled={submitting} onClick={() => setShowRejectModal(true)} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors">Revoke Digital ID</button>
               )}
               <button disabled={submitting} onClick={() => setShowDetailModal(false)} className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors">Close</button>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Reject Modal */}
+      <Modal isOpen={showRejectModal} onClose={() => setShowRejectModal(false)} title="Reject / Revoke ID" size="sm">
+        <form onSubmit={handleReject} className="space-y-4">
+          <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-sm text-red-800 flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p>Provide a clear reason for rejection or revocation. This will be visible to the resident so they can correct the issue.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+            <textarea
+              required
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 resize-none"
+              placeholder="E.g., Invalid document, does not meet requirements..."
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRejectModal(false)}
+              className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </Modal>
     </DashboardLayout>
   );

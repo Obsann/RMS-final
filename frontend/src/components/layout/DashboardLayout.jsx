@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Globe,
   Lock,
+  GitBranch,
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }) {
@@ -74,6 +75,7 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/admin/employees' },
     { labelKey: 'specialEmployees', icon: <UserCheck className="w-5 h-5" />, path: '/admin/special-employees' },
     { labelKey: 'requestsComplaints', icon: <MessageSquare className="w-5 h-5" />, path: '/admin/requests' },
+    { labelKey: 'Service Pipeline', icon: <GitBranch className="w-5 h-5" />, path: '/admin/service-pipeline' },
     { labelKey: 'digitalIdSystem', icon: <IdCard className="w-5 h-5" />, path: '/admin/digital-id' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/admin/notifications' },
     { labelKey: 'reports', icon: <FileText className="w-5 h-5" />, path: '/admin/reports' },
