@@ -65,7 +65,7 @@ export default function ServiceHub() {
   const navigate = useNavigate();
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
-  const [hasDigitalId, setHasDigitalId] = useState(false);
+  const [digitalIdStatus, setDigitalIdStatus] = useState(null);
   const servicesRef = useRef(null);
   const formRef = useRef(null);
 
@@ -75,7 +75,7 @@ export default function ServiceHub() {
         const { getMyDigitalId } = await import('../../utils/api');
         const idData = await getMyDigitalId();
         if (idData && idData.status !== 'none') {
-          setHasDigitalId(true);
+          setDigitalIdStatus(idData.status);
         }
       } catch (e) {
         // Ignored
@@ -87,6 +87,8 @@ export default function ServiceHub() {
   const selectedService = selectedServiceId ? getServiceById(selectedServiceId) : null;
   const activeGroup = activeGroupId ? SERVICE_GROUPS.find(g => g.id === activeGroupId) : null;
   const activeCategoryCard = activeGroupId ? CATEGORY_CARDS.find(c => c.groupId === activeGroupId) : null;
+  const hasExistingDigitalIdRecord = !!digitalIdStatus && digitalIdStatus !== 'none';
+  const digitalIdStatusLabel = (digitalIdStatus || '').replace(/_/g, ' ');
 
   // Scroll to services list when a category is selected
   useEffect(() => {
@@ -255,11 +257,26 @@ export default function ServiceHub() {
               </div>
             </div>
 
+            {activeGroupId === 'identity' && hasExistingDigitalIdRecord && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                  <Lock className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">New ID Application is read-only</p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    Your Digital ID record is already on file with a <span className="capitalize font-medium">{digitalIdStatusLabel}</span> status.
+                    Use <strong>ID Renewal</strong> for replacements or updates, or open Digital ID under your profile to review the current application.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Service cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeGroup.services.map((service) => {
                 const ServiceIcon = ICONS[service.icon] || FileText;
-                const isNewIdLocked = service.id === 'new_id_application' && hasDigitalId;
+                const isNewIdLocked = service.id === 'new_id_application' && hasExistingDigitalIdRecord;
 
                 return (
                   <button

@@ -42,7 +42,6 @@ export default function AdminResidents() {
       setResidents(data.users || []);
     } catch (error) {
       toast.error('Failed to load residents');
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -137,7 +136,10 @@ export default function AdminResidents() {
 
   const idStatusColors = {
     approved: 'text-green-600 bg-green-50 border-green-200',
+    issued: 'text-emerald-700 bg-emerald-50 border-emerald-200',
     pending: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    verified: 'text-sky-700 bg-sky-50 border-sky-200',
+    processing: 'text-indigo-700 bg-indigo-50 border-indigo-200',
     revoked: 'text-red-600 bg-red-50 border-red-200',
     expired: 'text-gray-500 bg-gray-50 border-gray-200',
     none: 'text-gray-500 bg-gray-50 border-gray-200'

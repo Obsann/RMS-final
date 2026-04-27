@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['resident', 'employee', 'admin'],
+        values: ['resident', 'employee', 'special-employee', 'admin'],
         message: '{VALUE} is not a valid role'
       },
       default: 'resident',
@@ -122,7 +122,7 @@ const userSchema = new mongoose.Schema(
       expiresAt: Date,
       status: {
         type: String,
-        enum: ['pending', 'approved', 'expired', 'revoked'],
+        enum: ['pending', 'verified', 'approved', 'processing', 'issued', 'expired', 'revoked'],
         default: 'pending'
       },
       lastVerified: Date

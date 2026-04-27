@@ -19,9 +19,10 @@ export function setToken(token) {
 
 export async function api(endpoint, options = {}) {
     const token = getToken();
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
     const headers = {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...options.headers,
     };
 
@@ -227,6 +228,10 @@ export function getMyDigitalId() {
     return api('/digital-id/me');
 }
 
+export function submitDigitalIdApplication(formData) {
+    return api('/digital-id/generate', { method: 'POST', body: formData });
+}
+
 export function requestDigitalId(data) {
     return api('/digital-id/generate', { method: 'POST', body: JSON.stringify(data) });
 }
@@ -241,6 +246,14 @@ export function revokeDigitalId(id, reason) {
 
 export function updateDigitalId(id, data) {
     return api(`/digital-id/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function getFileUrl(filePath) {
+    if (!filePath) return null;
+    if (/^https?:\/\//i.test(filePath)) return filePath;
+    if (filePath.startsWith('/uploads/')) return filePath;
+    if (filePath.startsWith('uploads/')) return `/${filePath}`;
+    return `/uploads/${filePath.replace(/^.*?uploads[\\/]/, '')}`;
 }
 
 // ── Households ──────────────────────────────────────────────────────────────

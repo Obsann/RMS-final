@@ -14,6 +14,10 @@ const rateLimit = new Map();
  */
 const createRateLimiter = (windowMs = 15 * 60 * 1000, maxRequests = 20, message = 'Too many requests', options = {}) => {
     return (req, res, next) => {
+        if (process.env.NODE_ENV === 'test') {
+            return next();
+        }
+
         const key = req.ip || req.connection.remoteAddress || 'unknown';
         const now = Date.now();
 

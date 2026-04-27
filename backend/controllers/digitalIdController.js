@@ -4,12 +4,37 @@ const DigitalId = require('../models/DigitalId');
 const User = require('../models/authmodel');
 const { checkLiveness } = require('../utils/livenessCheck');
 
+const DIGITAL_ID_ACTIVE_STATUSES = ['approved', 'issued'];
+const DIGITAL_ID_REVIEW_STATUSES = ['pending', 'verified', 'processing'];
+const DIGITAL_ID_DIRECT_ISSUE_ROLES = ['employee', 'special-employee'];
+
+function buildDigitalIdListQuery(req) {
+    const queryParts = [];
+
+    if (req.query.status) {
+        queryParts.push({ status: req.query.status });
+    }
+
+    if (req.user.role === 'employee') {
+        queryParts.push({
+            $or: [
+                { status: 'pending' },
+                { approvedBy: req.user.id },
+                { revokedBy: req.user.id }
+            ]
+        });
+    }
+
+    return queryParts.length > 0 ? { $and: queryParts } : {};
+}
+
 /**
- * Generate digital ID for a user
+ * Generate a brand-new digital ID application for a user.
  */
 const generateDigitalId = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const body = req.body || {};
+        const { userId } = body;
 
         // Authorization check: Only admin can generate ID for others
         if (userId && userId !== req.user.id && req.user.role !== 'admin') {
@@ -42,12 +67,12 @@ const generateDigitalId = async (req, res) => {
 
         // Build demographic updates object
         const demographicUpdates = {};
-        if (req.body.name) demographicUpdates.name = req.body.name;
-        if (req.body.dateOfBirth) demographicUpdates.dateOfBirth = req.body.dateOfBirth;
-        if (req.body.sex) demographicUpdates.sex = req.body.sex;
-        if (req.body.nationality) demographicUpdates.nationality = req.body.nationality;
-        if (req.body.address) demographicUpdates.address = req.body.address;
-        if (req.body.phone) demographicUpdates.phone = req.body.phone;
+        if (body.name) demographicUpdates.name = body.name;
+        if (body.dateOfBirth) demographicUpdates.dateOfBirth = body.dateOfBirth;
+        if (body.sex) demographicUpdates.sex = body.sex;
+        if (body.nationality) demographicUpdates.nationality = body.nationality;
+        if (body.address) demographicUpdates.address = body.address;
+        if (body.phone) demographicUpdates.phone = body.phone;
 
         if (req.files) {
             if (req.files.photo && req.files.photo[0]) {
@@ -128,20 +153,21 @@ const generateDigitalId = async (req, res) => {
 };
 
 /**
- * Get all digital IDs (admin)
+ * Get digital ID queue with role-scoped visibility.
  */
 const getAllDigitalIds = async (req, res) => {
     try {
-        const { status, page = 1, limit = 20 } = req.query;
-
-        const query = {};
-        if (status) query.status = status;
+        const { page = 1, limit = 20 } = req.query;
+        const query = buildDigitalIdListQuery(req);
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const [digitalIds, total] = await Promise.all([
             DigitalId.find(query)
                 .populate('user', 'username email unit phone profilePhoto birthCertificate dateOfBirth sex nationality address')
+                .populate('assignedTo', 'username email')
+                .populate('approvedBy', 'username email role')
+                .populate('revokedBy', 'username email role')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(parseInt(limit)),
@@ -190,7 +216,7 @@ const getDigitalIdByUser = async (req, res) => {
 };
 
 /**
- * Approve digital ID (admin)
+ * Approve and issue digital ID (employee/admin/special-employee)
  */
 const approveDigitalId = async (req, res) => {
     try {
@@ -201,29 +227,56 @@ const approveDigitalId = async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Digital ID not found' });
         }
 
-        if (digitalId.status === 'approved') {
+        if (DIGITAL_ID_ACTIVE_STATUSES.includes(digitalId.status)) {
             return res.status(400).json({ error: 'Bad Request', message: 'Already approved' });
+        }
+
+        if (digitalId.status === 'revoked' || digitalId.status === 'expired') {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: `Cannot approve a ${digitalId.status} Digital ID`
+            });
         }
 
         // Set expiry to 1 year from now
         const expiresAt = new Date();
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
-        digitalId.status = 'approved';
+        const wasAlreadyVerified = digitalId.verifications.some(
+            (entry) => entry.verifiedBy?.toString() === req.user.id && entry.method === 'manual'
+        );
+
+        if (!wasAlreadyVerified) {
+            digitalId.verifications.push({
+                verifiedBy: req.user.id,
+                verifiedAt: new Date(),
+                method: 'manual'
+            });
+        }
+
+        const finalStatus = DIGITAL_ID_DIRECT_ISSUE_ROLES.includes(req.user.role) ? 'issued' : 'approved';
+
+        digitalId.status = finalStatus;
         digitalId.issuedAt = new Date();
         digitalId.expiresAt = expiresAt;
         digitalId.approvedBy = req.user.id;
         digitalId.approvedAt = new Date();
+        digitalId.lastVerified = new Date();
         await digitalId.save();
 
         // Update user's digital ID status
         await User.findByIdAndUpdate(digitalId.user, {
-            'digitalId.status': 'approved',
+            'digitalId.status': finalStatus,
             'digitalId.issuedAt': digitalId.issuedAt,
-            'digitalId.expiresAt': expiresAt
+            'digitalId.expiresAt': expiresAt,
+            'digitalId.lastVerified': digitalId.lastVerified
         });
 
-        res.json({ message: 'Digital ID approved', digitalId });
+        const actionLabel = DIGITAL_ID_DIRECT_ISSUE_ROLES.includes(req.user.role)
+            ? 'Digital ID verified and issued'
+            : 'Digital ID approved';
+
+        res.json({ message: actionLabel, digitalId });
     } catch (error) {
         logger.error('ApproveDigitalId error:', error);
         res.status(500).json({ error: 'Server Error', message: error.message });
@@ -231,7 +284,7 @@ const approveDigitalId = async (req, res) => {
 };
 
 /**
- * Reject/Revoke digital ID (admin)
+ * Reject/Revoke digital ID (employee/admin/special-employee)
  */
 const revokeDigitalId = async (req, res) => {
     try {
@@ -241,6 +294,10 @@ const revokeDigitalId = async (req, res) => {
         const digitalId = await DigitalId.findById(id);
         if (!digitalId) {
             return res.status(404).json({ error: 'Not Found', message: 'Digital ID not found' });
+        }
+
+        if (digitalId.status === 'revoked') {
+            return res.status(400).json({ error: 'Bad Request', message: 'Digital ID is already revoked' });
         }
 
         digitalId.status = 'revoked';
@@ -298,7 +355,7 @@ const verifyDigitalId = async (req, res) => {
             });
         }
 
-        if (digitalId.status !== 'approved') {
+        if (!DIGITAL_ID_ACTIVE_STATUSES.includes(digitalId.status)) {
             return res.status(400).json({
                 error: 'Invalid',
                 message: `Digital ID is ${digitalId.status}`,
@@ -337,17 +394,20 @@ const verifyDigitalId = async (req, res) => {
  */
 const getDigitalIdStats = async (req, res) => {
     try {
-        const [total, pending, approved, expired, revoked] = await Promise.all([
+        const [total, pending, verified, approved, processing, issued, expired, revoked] = await Promise.all([
             DigitalId.countDocuments(),
             DigitalId.countDocuments({ status: 'pending' }),
+            DigitalId.countDocuments({ status: 'verified' }),
             DigitalId.countDocuments({ status: 'approved' }),
+            DigitalId.countDocuments({ status: 'processing' }),
+            DigitalId.countDocuments({ status: 'issued' }),
             DigitalId.countDocuments({ status: 'expired' }),
             DigitalId.countDocuments({ status: 'revoked' })
         ]);
 
         res.json({
             total,
-            byStatus: { pending, approved, expired, revoked }
+            byStatus: { pending, verified, approved, processing, issued, expired, revoked }
         });
     } catch (error) {
         logger.error('GetDigitalIdStats error:', error);
@@ -403,7 +463,7 @@ const updateDigitalId = async (req, res) => {
 };
 
 /**
- * Update Digital ID status (e.g. Employee verifying)
+ * Update Digital ID status (e.g. manual verification checkpoint)
  */
 const updateDigitalIdStatus = async (req, res) => {
     try {
@@ -426,6 +486,13 @@ const updateDigitalIdStatus = async (req, res) => {
 
         digitalId.status = status;
         await digitalId.save();
+
+        if (DIGITAL_ID_REVIEW_STATUSES.includes(status) || DIGITAL_ID_ACTIVE_STATUSES.includes(status) || status === 'revoked') {
+            await User.findByIdAndUpdate(digitalId.user._id || digitalId.user, {
+                'digitalId.status': status,
+                ...(status === 'verified' ? { 'digitalId.lastVerified': digitalId.lastVerified } : {})
+            });
+        }
 
         res.json({ message: 'Digital ID status updated', digitalId });
     } catch (error) {

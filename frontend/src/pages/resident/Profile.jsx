@@ -20,6 +20,9 @@ const MANDATORY_FIELDS = [
   { key: 'unit', label: 'Unit / House Number' }
 ];
 
+const ACTIVE_ID_STATUSES = ['approved', 'issued'];
+const REVIEW_ID_STATUSES = ['pending', 'verified', 'processing'];
+
 function getMissingFields(user) {
   return MANDATORY_FIELDS.filter(f => !user?.[f.key]);
 }
@@ -37,7 +40,7 @@ function ProfileCompletenessBar({ user, digitalIdStatus }) {
   const pct = Math.round((completed / MANDATORY_FIELDS.length) * 100);
 
   // If Digital ID is approved/issued, just show "Profile Complete"
-  if (missing.length === 0 && (digitalIdStatus === 'approved' || digitalIdStatus === 'issued')) {
+  if (missing.length === 0 && ACTIVE_ID_STATUSES.includes(digitalIdStatus)) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-center gap-3">
         <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
@@ -391,8 +394,16 @@ export default function ResidentProfile() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Digital ID Status</p>
-                    <p className={`font-medium capitalize ${digitalIdStatus === 'approved' || digitalIdStatus === 'issued' ? 'text-green-600' : digitalIdStatus === 'pending' ? 'text-yellow-600' : 'text-gray-500'}`}>
-                      {digitalIdStatus || 'Not Requested'}
+                    <p className={`font-medium capitalize ${
+                      ACTIVE_ID_STATUSES.includes(digitalIdStatus)
+                        ? 'text-green-600'
+                        : REVIEW_ID_STATUSES.includes(digitalIdStatus)
+                          ? 'text-blue-600'
+                          : digitalIdStatus === 'revoked'
+                            ? 'text-red-600'
+                            : 'text-gray-500'
+                    }`}>
+                      {digitalIdStatus ? digitalIdStatus.replace(/_/g, ' ') : 'Not Requested'}
                     </p>
                   </div>
                 </div>

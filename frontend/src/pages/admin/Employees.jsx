@@ -44,7 +44,6 @@ export default function AdminEmployees() {
       setEmployees(data.users || []);
     } catch (error) {
       toast.error('Failed to load employees');
-      console.error(error);
     } finally {
       setLoading(false);
     }

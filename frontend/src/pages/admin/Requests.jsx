@@ -34,7 +34,6 @@ export default function AdminRequests() {
       setRequests(data.requests || []);
     } catch (error) {
       toast.error('Failed to load requests');
-      console.error(error);
     } finally {
       setLoading(false);
     }

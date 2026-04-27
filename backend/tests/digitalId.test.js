@@ -1,15 +1,14 @@
 const request = require('supertest');
-const bcrypt = require('bcrypt');
 const app = require('../server');
 const User = require('../models/authmodel');
 const DigitalId = require('../models/DigitalId');
 
 const createUserAndLogin = async (overrides = {}) => {
-    const password = await bcrypt.hash('Test@123', 12);
+    const loginPassword = overrides.password || 'Test@123';
     const user = await User.create({
         username: overrides.username || 'testuser',
         email: overrides.email || 'test@example.com',
-        password,
+        password: loginPassword,
         role: overrides.role || 'resident',
         status: overrides.status || 'approved',
         ...overrides
@@ -17,7 +16,10 @@ const createUserAndLogin = async (overrides = {}) => {
 
     const res = await request(app)
         .post('/api/auth/login')
-        .send({ email: user.email, password: 'Test@123' });
+        .send({ email: user.email, password: loginPassword });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTruthy();
 
     return { user, token: res.body.token };
 };
@@ -84,9 +86,34 @@ describe('Digital ID Controller', () => {
                 .set('Authorization', `Bearer ${adminToken}`);
 
             expect(res.status).toBe(200);
+            expect(res.body.digitalId.status).toBe('approved');
         });
 
-        it('should reject approval from non-admin', async () => {
+        it('should allow employee to approve digital ID', async () => {
+            const { token: userToken } = await createUserAndLogin({
+                username: 'emp-applicant',
+                email: 'emp-applicant@test.com'
+            });
+
+            const { token: employeeToken } = await createUserAndLogin({
+                username: 'idemployee',
+                email: 'idemployee@test.com',
+                role: 'employee'
+            });
+
+            const genRes = await request(app)
+                .post('/api/digital-id/generate')
+                .set('Authorization', `Bearer ${userToken}`);
+
+            const res = await request(app)
+                .post(`/api/digital-id/${genRes.body.digitalId._id}/approve`)
+                .set('Authorization', `Bearer ${employeeToken}`);
+
+            expect(res.status).toBe(200);
+            expect(res.body.digitalId.status).toBe('issued');
+        });
+
+        it('should reject approval from a resident', async () => {
             const { token, user } = await createUserAndLogin({
                 username: 'nonappuser',
                 email: 'nonappuser@test.com'

@@ -6,10 +6,8 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const session = require('express-session');
 
-// Load environment variables FIRST
 dotenv.config();
 
-// Validate required environment variables
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
@@ -17,7 +15,6 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-// Passport must be required AFTER dotenv.config() so Google OAuth credentials are available
 const passport = require('./config/passport');
 
 const connectDB = require('./config/db');
@@ -37,12 +34,8 @@ const { createAuditLog } = require('./middleware/auditMiddleware');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --- MIDDLEWARE HIERARCHY ---
-
-// 1. Basic Security Headers
 app.use(helmet());
 
-// 2. CORS
 const corsOptions = {
   origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:3000'] : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
@@ -51,11 +44,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// 3. Body Parsing (Crucial: Must come before sanitization)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 4. Data Sanitization (Express 5 makes req.query read-only, so sanitize body & params only)
 app.use((req, res, next) => {
   if (req.body) {
     mongoSanitize.sanitize(req.body, { replaceWith: '_' });
@@ -66,25 +57,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// 5. Session (needed for Passport OAuth handshake)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-session-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 60000 } // Short-lived: only for OAuth redirect
+  cookie: { secure: false, maxAge: 60000 }
 }));
 
-// 6. Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 7. Rate Limiting
 app.use('/api', apiLimiter);
 
-// 6. Database Connection
-connectDB();
-
-// --- LOGIC & ROUTES ---
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 const autoAudit = (req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.user) {
@@ -121,17 +108,14 @@ app.use('/api/notifications', autoAudit, notificationRoute);
 app.use('/api/households', autoAudit, householdRoute);
 app.use('/api/reports', reportRoute);
 
-
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
 app.get('/', (req, res) => res.json({ message: 'RMS Kebele API is running', version: '1.0.0' }));
 
-// Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Error Handlers
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.path} not found` });
 });
@@ -151,8 +135,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
 
 module.exports = app;

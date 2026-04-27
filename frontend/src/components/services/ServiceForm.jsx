@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { Send, ArrowLeft, Paperclip, CheckCircle, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { Send, ArrowLeft, Paperclip, CheckCircle, Loader2, Lock, IdCard } from 'lucide-react';
 import { getServiceById } from './serviceConfig';
 import DocumentUpload from './DocumentUpload';
-import { createRequest } from '../../utils/api';
+import { createRequest, getMyDigitalId } from '../../utils/api';
 import { toast } from 'sonner';
 
 export default function ServiceForm({ serviceId, onBack, onSuccess }) {
+  const navigate = useNavigate();
   const service = getServiceById(serviceId);
   const [attachments, setAttachments] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [digitalIdStatus, setDigitalIdStatus] = useState(null);
+  const [checkingDigitalId, setCheckingDigitalId] = useState(serviceId === 'new_id_application');
 
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm({
@@ -24,7 +27,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
     }, {}) || {},
   });
 
-  // Reset form when service changes
   useEffect(() => {
     if (service) {
       const defaults = service.fields.reduce((acc, f) => {
@@ -37,28 +39,66 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
     }
   }, [serviceId, service, reset]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    if (serviceId !== 'new_id_application') {
+      setDigitalIdStatus(null);
+      setCheckingDigitalId(false);
+      return undefined;
+    }
+
+    const checkDigitalId = async () => {
+      setCheckingDigitalId(true);
+      try {
+        const digitalId = await getMyDigitalId();
+        if (!ignore && digitalId?.status && digitalId.status !== 'none') {
+          setDigitalIdStatus(digitalId.status);
+        }
+      } catch (error) {
+        if (error.status !== 404) {
+          toast.error('Unable to confirm your current Digital ID status right now.');
+        }
+      } finally {
+        if (!ignore) {
+          setCheckingDigitalId(false);
+        }
+      }
+    };
+
+    checkDigitalId();
+
+    return () => {
+      ignore = true;
+    };
+  }, [serviceId]);
+
   if (!service) return null;
+
+  const isLockedNewIdApplication = serviceId === 'new_id_application' && !!digitalIdStatus && digitalIdStatus !== 'none';
+  const statusLabel = (digitalIdStatus || '').replace(/_/g, ' ');
 
   const onSubmit = async (formData) => {
     try {
-      // Build the subject line from key fields
-      const subjectField = formData.fullName || formData.applicantName || formData.childFullName
-        || formData.businessName || formData.eventName || formData.projectTitle
-        || formData.deceasedName || service.label;
+      const { _priority = 'medium', ...requestFormData } = formData;
 
-      const descriptionField = formData.description || formData.projectDescription
-        || formData.businessDescription || formData.eventDescription
-        || formData.additionalNotes || `${service.label} request`;
+      const subjectField = requestFormData.fullName || requestFormData.applicantName || requestFormData.childFullName
+        || requestFormData.businessName || requestFormData.eventName || requestFormData.projectTitle
+        || requestFormData.deceasedName || service.label;
+
+      const descriptionField = requestFormData.description || requestFormData.projectDescription
+        || requestFormData.businessDescription || requestFormData.eventDescription
+        || requestFormData.additionalNotes || `${service.label} request`;
 
       const payload = {
         type: service.requestType,
         category: service.groupLabel,
-        subject: `${service.label} — ${subjectField}`,
+        subject: `${service.label} - ${subjectField}`,
         description: typeof descriptionField === 'string' ? descriptionField : `${service.label} request submitted`,
-        priority: 'medium',
+        priority: _priority,
         serviceType: service.label,
         categoryTag: service.categoryTag,
-        formData,
+        formData: requestFormData,
         attachments: attachments.map(a => ({
           filename: a.filename,
           originalName: a.originalName,
@@ -69,7 +109,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
       setSubmitted(true);
       toast.success('Request submitted successfully!');
 
-      // Auto-redirect after showing success
       setTimeout(() => {
         if (onSuccess) onSuccess();
       }, 2000);
@@ -78,7 +117,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
     }
   };
 
-  // Success state
   if (submitted) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center" id="service-form-success">
@@ -108,9 +146,73 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
     );
   }
 
+  if (checkingDigitalId) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Checking Digital ID eligibility</h3>
+        <p className="text-sm text-gray-500">Please wait while we confirm whether a new ID application can be submitted.</p>
+      </div>
+    );
+  }
+
+  if (isLockedNewIdApplication) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden" id="service-form-readonly">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-white">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-2 hover:bg-white rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{service.label}</h3>
+              <p className="text-sm text-gray-500">This request is unavailable because you already have a Digital ID record on file.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Application already on file</p>
+              <p className="text-sm text-amber-800 mt-1">
+                Your current Digital ID status is <span className="capitalize font-medium">{statusLabel}</span>. Use <strong>ID Renewal</strong>
+                for replacements or updates, or open your Digital ID page to track the existing record.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+            >
+              Back to Services
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/resident/digital-id')}
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
+            >
+              <IdCard className="w-4 h-4" />
+              Open My Digital ID
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden" id="service-form">
-      {/* Form Header */}
       <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex items-center gap-3">
           <button
@@ -127,9 +229,7 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
         </div>
       </div>
 
-      {/* Form Body */}
       <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
-        {/* Info Banner */}
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 flex items-start gap-3">
           <Send className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-blue-800">
@@ -137,7 +237,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
           </p>
         </div>
 
-        {/* Dynamic Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {service.fields.map((field) => {
             const isFullWidth = field.type === 'textarea';
@@ -204,7 +303,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
           })}
         </div>
 
-        {/* Document Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             <Paperclip className="w-4 h-4 inline mr-1" />
@@ -213,7 +311,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
           <DocumentUpload value={attachments} onChange={setAttachments} />
         </div>
 
-        {/* Priority */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
           <div className="flex gap-2">
@@ -232,7 +329,6 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
           </div>
         </div>
 
-        {/* Submit */}
         <div className="pt-4 flex gap-3 border-t border-gray-100">
           <button
             type="submit"

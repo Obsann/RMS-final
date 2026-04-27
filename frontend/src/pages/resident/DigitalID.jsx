@@ -4,13 +4,13 @@ import Modal from '../../components/ui/Modal';
 import { useNavigate } from 'react-router-dom';
 import {
   IdCard, AlertCircle, CheckCircle, Clock, Shield,
-  Loader2, Image as ImageIcon, User, Calendar, Globe,
+  Loader2, Image as ImageIcon, User, Calendar,
   Phone, MapPin, FileText, ChevronRight
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
-import { getMyDigitalId, getMeAPI } from '../../utils/api';
+import { getMyDigitalId, getMeAPI, submitDigitalIdApplication, getFileUrl } from '../../utils/api';
 
 const MANDATORY_PROFILE_FIELDS = [
   { key: 'phone', label: 'Phone Number' },
@@ -21,13 +21,15 @@ const MANDATORY_PROFILE_FIELDS = [
   { key: 'unit', label: 'Unit / House Number' },
 ];
 
+const ACTIVE_ID_STATUSES = ['approved', 'issued'];
+const REVIEW_ID_STATUSES = ['pending', 'verified', 'processing'];
+
 export default function ResidentDigitalID() {
   const navigate = useNavigate();
   const [digitalId, setDigitalId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showRequestForm, setShowRequestForm] = useState(false);
-
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -43,6 +45,12 @@ export default function ResidentDigitalID() {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  useEffect(() => {
+    if (digitalId?.status && digitalId.status !== 'none') {
+      setShowRequestForm(false);
+    }
+  }, [digitalId?.status]);
 
   const fetchAll = async () => {
     try {
@@ -60,7 +68,6 @@ export default function ResidentDigitalID() {
       setDigitalId(idData);
       setCurrentUser(meData);
 
-      // Pre-fill form from existing user profile
       if (meData) {
         setFormData(prev => ({
           ...prev,
@@ -95,7 +102,7 @@ export default function ResidentDigitalID() {
         unit: me.unit || prev.unit,
       }));
     } catch {
-      // silently fail — user can fill manually
+      toast.error('Failed to refresh profile data for the application form.');
     }
   };
 
@@ -105,7 +112,6 @@ export default function ResidentDigitalID() {
     }
   }, [showRequestForm]);
 
-  // Check which fields are already filled from the profile
   const isFieldFilledFromProfile = (key) => {
     if (!currentUser) return false;
     switch (key) {
@@ -123,10 +129,12 @@ export default function ResidentDigitalID() {
   const handleSubmitRequest = async (e) => {
     e.preventDefault();
     const { name, dateOfBirth, sex, phone, address, nationality, unit } = formData;
+
     if (!name || !dateOfBirth || !sex || !phone || !address || !nationality || !unit) {
       toast.error('Please fill in all required text fields.');
       return;
     }
+
     if (!files.photo || !files.birthCertificate) {
       toast.error('Please upload both the 4x3 passport photo and the birth certificate.');
       return;
@@ -134,37 +142,24 @@ export default function ResidentDigitalID() {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('rms_token');
       const payload = new FormData();
       Object.keys(formData).forEach(key => payload.append(key, formData[key]));
       payload.append('photo', files.photo);
       payload.append('birthCertificate', files.birthCertificate);
 
-      const res = await fetch('/api/digital-id/generate', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: payload
-      });
-
-      const resData = await res.json();
-
-      if (!res.ok) {
-        // Special handling for liveness check failure
-        if (resData.error === 'Liveness Check Failed') {
-          toast.error(
-            'Liveness check failed — your photo appears to be a printout or screenshot. Please upload a real, clear photo of yourself.',
-            { duration: 8000 }
-          );
-        } else {
-          throw new Error(resData.message || 'Failed to submit digital ID request');
-        }
-        return;
-      }
-
-      toast.success('Digital ID request submitted! Your photo passed liveness verification. Waiting for admin approval.');
+      await submitDigitalIdApplication(payload);
+      toast.success('Digital ID request submitted! Your application is now waiting for staff verification and issuance.');
       setShowRequestForm(false);
+      setFiles({ photo: null, birthCertificate: null });
       fetchAll();
     } catch (error) {
+      if (error.data?.error === 'Liveness Check Failed') {
+        toast.error(
+          'Liveness check failed - your photo appears to be a printout or screenshot. Please upload a real, clear photo of yourself.',
+          { duration: 8000 }
+        );
+        return;
+      }
       toast.error(error.message || 'Failed to submit request');
     } finally {
       setSubmitting(false);
@@ -198,9 +193,9 @@ export default function ResidentDigitalID() {
     );
   }
 
-  // The backend returns status: 'pending' | 'approved' | 'revoked' | 'expired'
   const currentStatus = digitalId?.status || 'none';
   const resident = currentUser || digitalId?.user || {};
+  const reviewState = getReviewStateCopy(currentStatus);
 
   return (
     <DashboardLayout>
@@ -208,12 +203,11 @@ export default function ResidentDigitalID() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Resident Digital ID</h1>
           <p className="text-gray-600 mt-1">
-            Your official Kebele Foundational Identity — a unique digital ID issued by the Hermata Merkato sub-city administration
+            Your official Kebele Foundational Identity - a unique digital ID issued by the Hermata Merkato sub-city administration
           </p>
         </div>
 
-        {/* ── APPROVED: Show the actual ID card ── */}
-        {currentStatus === 'approved' && digitalId ? (
+        {ACTIVE_ID_STATUSES.includes(currentStatus) && digitalId ? (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div
               id="digital-id-card"
@@ -223,25 +217,22 @@ export default function ResidentDigitalID() {
                 <Shield className="w-48 h-48" />
               </div>
               <div className="relative p-8">
-                {/* Header */}
                 <div className="flex justify-between items-start mb-8">
                   <div>
                     <p className="text-blue-200 font-semibold text-sm tracking-widest uppercase">Kebele Digital ID</p>
-                    <p className="text-xs text-blue-300 mt-0.5">Hermata Merkato • Jimma City</p>
+                    <p className="text-xs text-blue-300 mt-0.5">Hermata Merkato | Jimma City</p>
                   </div>
                   <div className="bg-green-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 border border-green-400/40 text-green-200">
                     <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm font-semibold tracking-wide">APPROVED</span>
+                    <span className="text-sm font-semibold tracking-wide">{currentStatus === 'issued' ? 'ISSUED' : 'APPROVED'}</span>
                   </div>
                 </div>
 
-                {/* Body */}
                 <div className="flex gap-6 items-start">
-                  {/* Profile photo or initials */}
                   <div className="w-20 h-24 bg-white/10 rounded-xl border-2 border-white/30 flex items-center justify-center shrink-0 overflow-hidden">
                     {resident.profilePhoto ? (
                       <img
-                        src={`http://localhost:5000${resident.profilePhoto}`}
+                        src={getFileUrl(resident.profilePhoto)}
                         alt="ID Photo"
                         className="w-full h-full object-cover"
                       />
@@ -255,12 +246,12 @@ export default function ResidentDigitalID() {
                   <div className="flex-1 space-y-3">
                     <div>
                       <p className="text-blue-300 text-xs uppercase tracking-wider">Full Name</p>
-                      <p className="text-white text-lg font-semibold">{resident.username || '—'}</p>
+                      <p className="text-white text-lg font-semibold">{resident.username || '-'}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                       <div>
                         <p className="text-blue-300 text-xs uppercase tracking-wider">FIN</p>
-                        <p className="text-white font-medium text-sm">{digitalId.idNumber || '—'}</p>
+                        <p className="text-white font-medium text-sm">{digitalId.idNumber || '-'}</p>
                       </div>
                       <div>
                         <p className="text-blue-300 text-xs uppercase tracking-wider">Nationality</p>
@@ -268,18 +259,17 @@ export default function ResidentDigitalID() {
                       </div>
                       <div>
                         <p className="text-blue-300 text-xs uppercase tracking-wider">Gender</p>
-                        <p className="text-white font-medium">{resident.sex || '—'}</p>
+                        <p className="text-white font-medium">{resident.sex || '-'}</p>
                       </div>
                       <div>
                         <p className="text-blue-300 text-xs uppercase tracking-wider">Issued</p>
                         <p className="text-white font-medium">
-                          {digitalId.issuedAt ? new Date(digitalId.issuedAt).toLocaleDateString() : '—'}
+                          {digitalId.issuedAt ? new Date(digitalId.issuedAt).toLocaleDateString() : '-'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* QR Code */}
                   <div className="w-20 h-20 bg-white rounded-lg p-1 shrink-0">
                     <QRCodeSVG
                       value={digitalId.qrCode || 'RMS-KEBELE'}
@@ -293,9 +283,13 @@ export default function ResidentDigitalID() {
 
                 <div className="mt-6 pt-4 border-t border-white/20 flex justify-between items-center">
                   <p className="text-xs text-blue-400">This ID is the property of the Kebele Administration</p>
-                  <div className="text-xs text-blue-400">RMS • Hermata Merkato</div>
+                  <div className="text-xs text-blue-400">RMS | Hermata Merkato</div>
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+              This record is now read-only here. For replacements, corrections, or renewals, use the ID Renewal service from the Service Hub.
             </div>
 
             <div className="flex justify-center pt-2">
@@ -309,8 +303,7 @@ export default function ResidentDigitalID() {
             </div>
           </div>
 
-        ) : currentStatus === 'pending' && digitalId ? (
-          /* ── PENDING: Show request summary card ── */
+        ) : REVIEW_ID_STATUSES.includes(currentStatus) && digitalId ? (
           <div className="max-w-2xl mx-auto space-y-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -318,19 +311,19 @@ export default function ResidentDigitalID() {
                   <Clock className="w-6 h-6 text-yellow-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-yellow-900">Request Under Review</h2>
+                  <h2 className="text-lg font-bold text-yellow-900">{reviewState.title}</h2>
                   <p className="text-yellow-700 text-sm">Submitted on {new Date(digitalId.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="ml-auto">
-                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm font-semibold">Pending Approval</span>
+                  <span className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm font-semibold">{reviewState.badge}</span>
                 </div>
               </div>
-              <p className="text-yellow-800 text-sm">
-                Your Digital ID request is being reviewed by the Kebele administration. This usually takes 1–2 business days. You will be notified once a decision is made.
+              <p className="text-yellow-800 text-sm">{reviewState.body}</p>
+              <p className="text-xs text-yellow-700 mt-3 pt-3 border-t border-yellow-200">
+                This application is read-only while it is being processed. Use this page to track progress. For later updates or replacements, use ID Renewal from the Service Hub.
               </p>
             </div>
 
-            {/* Request Info Summary */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -340,23 +333,16 @@ export default function ResidentDigitalID() {
               </div>
               <div className="p-6 grid sm:grid-cols-2 gap-4">
                 <InfoRow icon={<User className="w-4 h-4" />} label="Full Name" value={resident.username} />
-                <InfoRow icon={<Calendar className="w-4 h-4" />} label="Date of Birth"
-                  value={resident.dateOfBirth ? new Date(resident.dateOfBirth).toLocaleDateString() : null}
-                />
+                <InfoRow icon={<Calendar className="w-4 h-4" />} label="Date of Birth" value={resident.dateOfBirth ? new Date(resident.dateOfBirth).toLocaleDateString() : null} />
                 <InfoRow icon={<User className="w-4 h-4" />} label="Sex" value={resident.sex} />
                 <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone Number" value={resident.phone} />
                 <InfoRow icon={<MapPin className="w-4 h-4" />} label="Address" value={resident.address} />
-                <InfoRow
-                  icon={<Calendar className="w-4 h-4" />}
-                  label="Request Date"
-                  value={new Date(digitalId.createdAt).toLocaleDateString()}
-                />
+                <InfoRow icon={<Calendar className="w-4 h-4" />} label="Request Date" value={new Date(digitalId.createdAt).toLocaleDateString()} />
               </div>
             </div>
           </div>
 
         ) : currentStatus === 'revoked' ? (
-          /* ── REVOKED ── */
           <div className="bg-white rounded-xl shadow-sm border border-red-200 text-center p-12 max-w-2xl mx-auto">
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-10 h-10 text-red-500" />
@@ -365,10 +351,32 @@ export default function ResidentDigitalID() {
             <p className="text-gray-600 mb-8 max-w-sm mx-auto">
               Your Digital ID has been revoked. Please contact the Kebele office for more information.
             </p>
+            <button
+              onClick={() => navigate('/resident/services')}
+              className="px-5 py-2.5 bg-white border border-red-200 text-red-700 rounded-lg hover:bg-red-50 font-medium transition-colors"
+            >
+              Open Services for ID Renewal
+            </button>
+          </div>
+
+        ) : currentStatus === 'expired' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-orange-200 text-center p-12 max-w-2xl mx-auto">
+            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Clock className="w-10 h-10 text-orange-500" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Digital ID Expired</h2>
+            <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              Your previous Digital ID has expired. This record stays read-only here so you can reference it, and you should use ID Renewal to request a replacement.
+            </p>
+            <button
+              onClick={() => navigate('/resident/services')}
+              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
+            >
+              Go to ID Renewal
+            </button>
           </div>
 
         ) : (
-          /* ── NO ID: Show request button or profile completeness gate ── */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden text-center p-12 max-w-2xl mx-auto">
             <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <IdCard className="w-10 h-10 text-blue-600" />
@@ -378,7 +386,6 @@ export default function ResidentDigitalID() {
               You haven't applied for your Kebele Foundational Digital ID yet. The Kebele will issue a unique Foundational Identity Number (FIN) for you upon approval.
             </p>
 
-            {/* Profile completeness gate */}
             {(() => {
               const missing = MANDATORY_PROFILE_FIELDS.filter(f => !resident?.[f.key]);
               if (missing.length > 0) {
@@ -400,7 +407,7 @@ export default function ResidentDigitalID() {
                       ))}
                     </ul>
                     <p className="text-xs text-amber-700 pt-1 border-t border-amber-200">
-                      📎 You will also need to upload a <strong>passport-size photo</strong> and <strong>birth certificate</strong> when applying.
+                      You will also need to upload a <strong>passport-size photo</strong> and <strong>birth certificate</strong> when applying.
                     </p>
                     <button
                       onClick={() => navigate('/resident/profile')}
@@ -413,7 +420,7 @@ export default function ResidentDigitalID() {
               }
               return (
                 <>
-                  <p className="text-xs text-gray-500 mb-4">📎 You'll need a passport-size photo and birth certificate for the application.</p>
+                  <p className="text-xs text-gray-500 mb-4">You'll need a passport-size photo and birth certificate for the application.</p>
                   <button
                     onClick={() => setShowRequestForm(true)}
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors inline-flex items-center gap-2"
@@ -426,7 +433,6 @@ export default function ResidentDigitalID() {
           </div>
         )}
 
-        {/* Info cards at bottom */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -438,9 +444,9 @@ export default function ResidentDigitalID() {
                 'Access to Kebele amenities and services',
                 'Verified proof of residence for official matters',
                 'Easier processing for letters and documents',
-              ].map((b, i) => (
-                <li key={i} className="flex gap-3 text-sm text-gray-600">
-                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0" /> {b}
+              ].map((benefit) => (
+                <li key={benefit} className="flex gap-3 text-sm text-gray-600">
+                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0" /> {benefit}
                 </li>
               ))}
             </ul>
@@ -455,10 +461,10 @@ export default function ResidentDigitalID() {
                 'IDs are non-transferable and personal to the resident.',
                 'Report immediately if you suspect unauthorized use.',
                 'Administration reserves the right to revoke access.',
-              ].map((g, i) => (
-                <li key={i} className="flex gap-3 text-sm text-gray-600">
+              ].map((guideline) => (
+                <li key={guideline} className="flex gap-3 text-sm text-gray-600">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-2 shrink-0" />
-                  {g}
+                  {guideline}
                 </li>
               ))}
             </ul>
@@ -466,7 +472,6 @@ export default function ResidentDigitalID() {
         </div>
       </div>
 
-      {/* ── Request Form Modal ── */}
       <Modal isOpen={showRequestForm} onClose={() => setShowRequestForm(false)} title="Apply for Kebele Digital ID" size="md">
         <form onSubmit={handleSubmitRequest} className="space-y-4 overflow-y-auto max-h-[75vh] px-1">
           <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-800 flex gap-3 items-start">
@@ -474,43 +479,37 @@ export default function ResidentDigitalID() {
             <p>Fields already filled from your profile are shown as read-only. Upload the required documents to complete your application.</p>
           </div>
 
-          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
             {isFieldFilledFromProfile('name') ? (
-              <input type="text" disabled value={formData.name}
-                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              <input type="text" disabled value={formData.name} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
             ) : (
-              <input required type="text" value={formData.name}
+              <input
+                required
+                type="text"
+                value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="E.g., Abebe Kebede Alemu" />
+                placeholder="E.g., Abebe Kebede Alemu"
+              />
             )}
           </div>
 
-          {/* DOB + Sex */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
               {isFieldFilledFromProfile('dateOfBirth') ? (
-                <input type="text" disabled
-                  value={formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString() : ''}
-                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+                <input type="text" disabled value={formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString() : ''} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
               ) : (
-                <input required type="date" value={formData.dateOfBirth}
-                  onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                <input required type="date" value={formData.dateOfBirth} onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
               )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
               {isFieldFilledFromProfile('sex') ? (
-                <input type="text" disabled value={formData.sex}
-                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+                <input type="text" disabled value={formData.sex} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
               ) : (
-                <select required value={formData.sex}
-                  onChange={e => setFormData({ ...formData, sex: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <select required value={formData.sex} onChange={e => setFormData({ ...formData, sex: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                   <option value="">Select...</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -519,69 +518,48 @@ export default function ResidentDigitalID() {
             </div>
           </div>
 
-          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
             {isFieldFilledFromProfile('phone') ? (
-              <input type="text" disabled value={formData.phone}
-                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              <input type="text" disabled value={formData.phone} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
             ) : (
-              <input required type="tel" value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="+251..." />
+              <input required type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="+251..." />
             )}
           </div>
 
-          {/* Nationality + Unit */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nationality *</label>
               {isFieldFilledFromProfile('nationality') ? (
-                <input type="text" disabled value={formData.nationality}
-                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+                <input type="text" disabled value={formData.nationality} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
               ) : (
-                <input required type="text" value={formData.nationality}
-                  onChange={e => setFormData({ ...formData, nationality: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="E.g., Ethiopian" />
+                <input required type="text" value={formData.nationality} onChange={e => setFormData({ ...formData, nationality: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="E.g., Ethiopian" />
               )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit / House No *</label>
               {isFieldFilledFromProfile('unit') ? (
-                <input type="text" disabled value={formData.unit}
-                  className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+                <input type="text" disabled value={formData.unit} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
               ) : (
-                 <input required type="text" value={formData.unit}
-                  onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="E.g., A-12" />
+                <input required type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="E.g., A-12" />
               )}
             </div>
           </div>
 
-          {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
             {isFieldFilledFromProfile('address') ? (
-              <input type="text" disabled value={formData.address}
-                className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
+              <input type="text" disabled value={formData.address} className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed" />
             ) : (
-              <textarea required value={formData.address}
-                onChange={e => setFormData({ ...formData, address: e.target.value })}
-                rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                placeholder="Full residential address (Kebele, Woreda, City)" />
+              <textarea required value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder="Full residential address (Kebele, Woreda, City)" />
             )}
           </div>
 
-          {/* Documents */}
           <div className="border-t border-gray-200 pt-4 space-y-4">
             <h4 className="font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" /> Required Documents
             </h4>
-            
+
             <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <div className="text-xs text-blue-800 space-y-1">
@@ -592,15 +570,17 @@ export default function ResidentDigitalID() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Passport-size Photo (4×3, white background) *
+                Passport-size Photo (4 x 3, white background) *
               </label>
               <input
-                required type="file" accept="image/*"
+                required
+                type="file"
+                accept="image/*"
                 onChange={e => setFiles({ ...files, photo: e.target.files[0] })}
                 className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg px-3 py-2 cursor-pointer"
               />
               {files.photo && (
-                <p className="text-xs text-green-600 mt-1">✓ {files.photo.name}</p>
+                <p className="text-xs text-green-600 mt-1">Selected: {files.photo.name}</p>
               )}
             </div>
 
@@ -609,20 +589,22 @@ export default function ResidentDigitalID() {
                 Birth Certificate (Image or PDF) *
               </label>
               <input
-                required type="file" accept="image/*,.pdf"
+                required
+                type="file"
+                accept="image/*,.pdf"
                 onChange={e => setFiles({ ...files, birthCertificate: e.target.files[0] })}
                 className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-lg px-3 py-2 cursor-pointer"
               />
               {files.birthCertificate && (
-                <p className="text-xs text-green-600 mt-1">✓ {files.birthCertificate.name}</p>
+                <p className="text-xs text-green-600 mt-1">Selected: {files.birthCertificate.name}</p>
               )}
             </div>
           </div>
 
-          {/* Actions */}
           <div className="pt-3 flex gap-3">
             <button
-              disabled={submitting} type="submit"
+              disabled={submitting}
+              type="submit"
               className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors"
             >
               {submitting ? 'Verifying & Submitting...' : 'Submit Application'}
@@ -641,7 +623,30 @@ export default function ResidentDigitalID() {
   );
 }
 
-// Helper component
+function getReviewStateCopy(status) {
+  switch (status) {
+    case 'verified':
+      return {
+        title: 'Verification Completed',
+        badge: 'Awaiting Issue',
+        body: 'Your details have been verified by staff and your Digital ID is being finalized for issuance.'
+      };
+    case 'processing':
+      return {
+        title: 'Digital ID In Processing',
+        badge: 'Processing',
+        body: 'Your Digital ID has cleared review and is in the final preparation stage before it becomes active.'
+      };
+    case 'pending':
+    default:
+      return {
+        title: 'Request Under Review',
+        badge: 'Pending Review',
+        body: 'Your Digital ID request is being reviewed by the Kebele administration. This usually takes 1-2 business days. You will be notified once a decision is made.'
+      };
+  }
+}
+
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-start gap-3">
@@ -650,7 +655,7 @@ function InfoRow({ icon, label, value }) {
       </div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-900">{value || '—'}</p>
+        <p className="text-sm font-medium text-gray-900">{value || '-'}</p>
       </div>
     </div>
   );

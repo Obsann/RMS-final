@@ -12,10 +12,12 @@ const {
 } = require('../controllers/digitalIdController');
 const authMiddleware = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
-const staffAuth = require('../middleware/staffAuth');
+const { roleAuth } = require('../middleware/roleAuth');
 const upload = require('../utils/uploadMiddleware');
 
 const router = express.Router();
+const digitalIdStaffAuth = roleAuth(['admin', 'employee', 'special-employee']);
+const digitalIdWorkflowAdminAuth = roleAuth(['admin', 'special-employee']);
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -29,11 +31,11 @@ router.post('/generate', upload.fields([
     { name: 'birthCertificate', maxCount: 1 }
 ]), generateDigitalId);
 
-// Get all digital IDs (admin only)
-router.get('/', adminAuth, getAllDigitalIds);
+// Get all digital IDs (staff visibility is scoped in the controller)
+router.get('/', digitalIdStaffAuth, getAllDigitalIds);
 
-// Verify by QR code (any employee/admin)
-router.post('/verify', verifyDigitalId);
+// Verify by QR code (staff only)
+router.post('/verify', digitalIdStaffAuth, verifyDigitalId);
 
 // Get digital ID by user
 router.get('/user/:userId', getDigitalIdByUser);
@@ -44,16 +46,16 @@ router.get('/me', (req, res, next) => {
     next();
 }, getDigitalIdByUser);
 
-// Approve digital ID (admin/staff)
-router.post('/:id/approve', staffAuth, approveDigitalId);
+// Approve digital ID (employee/admin/special-employee)
+router.post('/:id/approve', digitalIdStaffAuth, approveDigitalId);
 
-// Revoke digital ID (admin/staff)
-router.post('/:id/revoke', staffAuth, revokeDigitalId);
+// Revoke digital ID (employee/admin/special-employee)
+router.post('/:id/revoke', digitalIdStaffAuth, revokeDigitalId);
 
 // Update digital ID (admin/special-employee)
-router.put('/:id', staffAuth, updateDigitalId);
+router.put('/:id', digitalIdWorkflowAdminAuth, updateDigitalId);
 
 // Update status (e.g. verified by employee)
-router.put('/:id/status', staffAuth, updateDigitalIdStatus);
+router.put('/:id/status', digitalIdStaffAuth, updateDigitalIdStatus);
 
 module.exports = router;
