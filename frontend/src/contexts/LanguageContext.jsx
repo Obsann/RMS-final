@@ -1,4 +1,8 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
+
+// Google Translate natively handles all translations across the DOM.
+// We keep this context to supply the base English strings so we don't break existing components
+// that still import `useLanguage()` and call `t('some string')`.
 
 export const translations = {
   en: {
@@ -6,7 +10,7 @@ export const translations = {
     dashboard: 'Dashboard',
     residents: 'Residents',
     employees: 'Employees',
-    specialEmployees: 'Special Employees',
+
     taskManagement: 'Task Management',
     requestsComplaints: 'Requests & Complaints',
     digitalIdSystem: 'Digital ID System',
@@ -52,7 +56,7 @@ export const translations = {
     // Actions
     addResident: 'Add Resident',
     addEmployee: 'Add Employee',
-    addSpecialEmployee: 'Add Special Employee',
+
     createTask: 'Create Task',
     cancel: 'Cancel',
     save: 'Save Changes',
@@ -68,98 +72,22 @@ export const translations = {
     generateReport: 'Generate Report',
     exportPdf: 'Export PDF',
     exportExcel: 'Export Excel',
-    // Language toggle label shown on button
-    switchLanguage: 'አማርኛ',
-  },
-  am: {
-    // Sidebar / Navigation
-    dashboard: 'ዳሽቦርድ',
-    residents: 'ነዋሪዎች',
-    employees: 'ሠራተኞች',
-    specialEmployees: 'ልዩ ሠራተኞች',
-    taskManagement: 'የሥራ አስተዳደር',
-    requestsComplaints: 'ጥያቄዎች እና ቅሬታዎች',
-    digitalIdSystem: 'ዲጂታል መታወቂያ ስርዓት',
-    notifications: 'ማሳወቂያዎች',
-    reports: 'ሪፖርቶች',
-    settings: 'ቅንብሮች',
-    logout: 'ውጣ',
-    myTasks: 'የእኔ ሥራዎች',
-    myRequests: 'የእኔ ጥያቄዎች',
-    digitalId: 'ዲጂታል መታወቂያ',
-    profile: 'መገለጫ',
-    // App-wide
-    propertyManagement: 'ነዋሪ አስተዳደር',
-    searchPlaceholder: 'ነዋሪዎችን፣ ሠራተኞችን ወይም ሥራዎችን ፈልግ...',
-    // Welcome
-    welcomeTitle: 'የነዋሪ አስተዳደር ስርዓት',
-    welcomeSubtitle: 'ለዘመናዊ ኑሮ ሁሉን አቀፍ የነዋሪ አስተዳደር መፍትሄ',
-    getStarted: 'ጀምር',
-    loginButton: 'ወደ መለያዎ ይግቡ',
-    registerButton: 'እንደ ነዋሪ ይመዝገቡ',
-    residentMgmt: 'ነዋሪ አስተዳደር',
-    residentMgmtDesc: 'ነዋሪዎችን፣ ጥገኞችን እና ዲጂታል መታወቂያዎችን ያስተዳድሩ',
-    taskTracking: 'የሥራ ክትትል',
-    taskTrackingDesc: 'የጥገና ሥራዎችን እና የሠራተኛ ምደባዎችን በቀጥታ ይከታተሉ',
-    requestSystem: 'የጥያቄ ስርዓት',
-    requestSystemDesc: 'የጥገና ጥያቄዎችን እና ቅሬታዎችን ያስተናግዱ',
-    // Login
-    signIn: 'ግባ',
-    signInSubtitle: 'ወደ መለያዎ ይግቡ',
-    emailAddress: 'ኢሜይል አድራሻ',
-    password: 'የምስጢር ቃል',
-    loginAs: 'እንደ ምን ይግቡ',
-    noAccount: 'መለያ የለዎትም? እንደ ነዋሪ ይመዝገቡ',
-    backToHome: 'ወደ መነሻ ተመለስ',
-    // Register
-    createAccount: 'መለያ ፍጠር',
-    createAccountSubtitle: 'የነዋሪ መለያ ይፍጠሩ',
-    fullName: 'ሙሉ ስም',
-    phone: 'ስልክ ቁጥር',
-    unitNumber: 'የቤት ቁጥር',
-    confirmPassword: 'የምስጢር ቃልዎን ያረጋግጡ',
-    alreadyHaveAccount: 'መለያ አለዎት? ይግቡ',
-    // Actions
-    addResident: 'ነዋሪ ጨምር',
-    addEmployee: 'ሠራተኛ ጨምር',
-    addSpecialEmployee: 'ልዩ ሠራተኛ ጨምር',
-    createTask: 'ሥራ ፍጠር',
-    cancel: 'ሰርዝ',
-    save: 'ለውጦቹን አስቀምጥ',
-    close: 'ዝጋ',
-    submit: 'አስገባ',
-    submitRequest: 'ጥያቄ አስገባ',
-    submitComplaint: 'ቅሬታ አስገባ',
-    // Digital ID
-    requestDigitalId: 'ዲጂታል መታወቂያ ጠይቅ',
-    idStatus: 'የመታወቂያ ሁኔታ',
-    idWorkflow: 'የዲጂታል መታወቂያ ሂደት',
-    // Reports
-    generateReport: 'ሪፖርት ፍጠር',
-    exportPdf: 'PDF ወደ ውጭ ላክ',
-    exportExcel: 'Excel ወደ ውጭ ላክ',
-    // Language toggle label shown on button
-    switchLanguage: 'English',
-  },
+    switchLanguage: 'Language',
+  }
 };
 
 export const LanguageContext = createContext({
   lang: 'en',
   t: (key) => key,
+  setLang: () => { },
   toggleLanguage: () => { },
 });
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState('en');
-
-  const toggleLanguage = () => {
-    setLang((prev) => (prev === 'en' ? 'am' : 'en'));
-  };
-
-  const t = (key) => translations[lang][key] || translations['en'][key] || key;
+  const t = (key) => translations['en'][key] || key;
 
   return (
-    <LanguageContext.Provider value={{ lang, t, toggleLanguage }}>
+    <LanguageContext.Provider value={{ lang: 'en', setLang: () => {}, t, toggleLanguage: () => {} }}>
       {children}
     </LanguageContext.Provider>
   );

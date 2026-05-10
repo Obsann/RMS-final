@@ -110,7 +110,7 @@ const createRequestValidator = [
         .isLength({ max: 100 }).withMessage('Service type must be less than 100 characters'),
     body('categoryTag')
         .optional()
-        .isIn(['ID_REGISTRATION', 'DOCUMENT_PROCESSING', 'COMPLAINT_HANDLING']).withMessage('Invalid category tag'),
+        .isIn(['ID_REGISTRATION', 'CERTIFICATES', 'PERMITS', 'FEEDBACK_SUPPORT']).withMessage('Invalid category tag'),
     body('formData')
         .optional(),
     validate
@@ -140,7 +140,7 @@ const createJobValidator = [
     body('category')
         .trim()
         .notEmpty().withMessage('Category is required')
-        .isIn(['Plumbing', 'Electrical', 'HVAC', 'General Maintenance', 'Landscaping', 'Cleaning', 'Security', 'Carpentry', 'Other']).withMessage('Invalid job category'),
+        .isIn(['Identity & Registration', 'Certificates', 'Permits', 'Feedback & Support', 'Other']).withMessage('Invalid job category'),
     body('priority')
         .optional()
         .isIn(['low', 'medium', 'high', 'urgent']).withMessage('Invalid priority level'),
@@ -181,7 +181,7 @@ const announcementValidator = [
         .isLength({ max: 1000 }).withMessage('Message must be less than 1000 characters'),
     body('targetRole')
         .optional()
-        .isIn(['resident', 'employee', 'special-employee', 'admin']).withMessage('Invalid target role'),
+        .isIn(['resident', 'employee', 'admin']).withMessage('Invalid target role'),
     validate
 ];
 

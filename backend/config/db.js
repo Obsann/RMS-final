@@ -1,30 +1,29 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 const connectDB = async () => {
     try {
-        // 1. Trim the URI to remove any accidental leading/trailing spaces
-        const uri = process.env.MONGO_URI ? process.env.MONGO_URI.trim() : '';
+        const uri = process.env.MONGO_URI?.trim();
 
         if (!uri) {
             throw new Error("MONGO_URI is missing in environment variables.");
         }
 
-        const options = {
-            family: 4, // Force IPv4 to avoid Node 18+ DNS resolution bugs
-            serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
-        };
-
         console.log('Connecting to MongoDB Atlas...');
-        await mongoose.connect(uri, options);
+
+        await mongoose.connect(uri, {
+            family: 4,
+            serverSelectionTimeoutMS: 30000,
+        });
 
         console.log('✅ MongoDB connected successfully');
 
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error.message);
 
-        // Detailed hint for the ECONNREFUSED error
-        if (error.message.includes('ECONNREFUSED')) {
-            console.error('TIP: This is usually a DNS or Firewall issue. Ensure your IP is whitelisted in Atlas.');
+        if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT')) {
+            console.error('TIP: Check Atlas IP whitelist + internet connection + DNS resolution');
         }
 
         process.exit(1);

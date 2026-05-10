@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import RequestTracker from '../../components/services/RequestTracker';
+import IssuedDocument from '../../components/services/IssuedDocument';
 import { DEPARTMENT_MAP } from '../../components/services/serviceConfig';
 import { getRequests } from '../../utils/api';
 import { toast } from 'sonner';
@@ -76,8 +77,8 @@ export default function MyRequests() {
   const getDepartment = (req) => {
     if (req.categoryTag && DEPARTMENT_MAP[req.categoryTag]) return DEPARTMENT_MAP[req.categoryTag];
     // Fallback for legacy requests
-    if (req.type === 'complaint') return 'Complaints & Feedback';
-    if (req.type === 'certificate') return 'Document Processing';
+    if (req.type === 'complaint') return 'Feedback & Support';
+    if (req.type === 'certificate') return 'Certificates';
     return req.category || 'General';
   };
 
@@ -329,6 +330,11 @@ export default function MyRequests() {
                             <p className="text-xs font-medium text-blue-900 mb-1">Response from Administration:</p>
                             <p className="text-sm text-blue-800">{req.response.message}</p>
                           </div>
+                        )}
+
+                        {/* Issued Certificate / Permit */}
+                        {req.status === 'completed' && req.issuedDocument?.documentNumber && (
+                          <IssuedDocument issuedDocument={req.issuedDocument} />
                         )}
 
                         {/* Attachments */}

@@ -14,6 +14,10 @@ const fileSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    url: {
+        type: String,
+        required: false // true once migrated completely
+    },
     size: {
         type: Number,
         required: true

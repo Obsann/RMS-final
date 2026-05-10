@@ -153,7 +153,9 @@ const userSchema = new mongoose.Schema(
     officeLocation: { type: String, trim: true },
     supervisorName: { type: String, trim: true },
     // For admin: system governance notes
-    adminNote: { type: String, trim: true, maxlength: 500 }
+    adminNote: { type: String, trim: true, maxlength: 500 },
+    // Soft delete
+    isDeleted: { type: Boolean, default: false }
   },
   {
     timestamps: true // Adds createdAt and updatedAt automatically

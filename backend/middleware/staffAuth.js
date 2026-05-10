@@ -1,5 +1,5 @@
 /**
- * Staff authorization middleware - allows admin and special-employee roles
+ * Staff authorization middleware - allows admin and employee roles
  * Must be used AFTER authMiddleware
  */
 const staffAuth = (req, res, next) => {
@@ -11,10 +11,10 @@ const staffAuth = (req, res, next) => {
             });
         }
 
-        if (req.user.role !== 'admin' && req.user.role !== 'special-employee') {
+        if (req.user.role !== 'admin' && req.user.role !== 'employee') {
             return res.status(403).json({
                 error: 'Forbidden',
-                message: 'Staff access required (admin or special-employee)'
+                message: 'Staff access required (admin or employee)'
             });
         }
 

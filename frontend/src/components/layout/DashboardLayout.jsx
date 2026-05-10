@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   UserCog,
-  UserCheck,
   MessageSquare,
   IdCard,
   Bell,
@@ -23,13 +22,21 @@ import {
   Globe,
   Lock,
   GitBranch,
+  Award,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import TranslateWidget from '../TranslateWidget';
 
 export default function DashboardLayout({ children }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const { t, lang, toggleLanguage } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [bellCount, setBellCount] = useState(0);
@@ -73,7 +80,6 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/admin/dashboard' },
     { labelKey: 'residents', icon: <Users className="w-5 h-5" />, path: '/admin/residents' },
     { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/admin/employees' },
-    { labelKey: 'specialEmployees', icon: <UserCheck className="w-5 h-5" />, path: '/admin/special-employees' },
     { labelKey: 'requestsComplaints', icon: <MessageSquare className="w-5 h-5" />, path: '/admin/requests' },
     { labelKey: 'Service Pipeline', icon: <GitBranch className="w-5 h-5" />, path: '/admin/service-pipeline' },
     { labelKey: 'digitalIdSystem', icon: <IdCard className="w-5 h-5" />, path: '/admin/digital-id' },
@@ -81,24 +87,12 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'reports', icon: <FileText className="w-5 h-5" />, path: '/admin/reports' },
   ];
 
-  const specialEmployeeMenuItems = [
-    { labelKey: 'dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/special-employee/dashboard' },
-    { labelKey: 'residents', icon: <Users className="w-5 h-5" />, path: '/special-employee/residents', readOnly: true },
-    { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/special-employee/employees', readOnly: true },
-    { labelKey: 'requestsComplaints', icon: <MessageSquare className="w-5 h-5" />, path: '/special-employee/requests' },
-    { labelKey: 'digitalIdSystem', icon: <IdCard className="w-5 h-5" />, path: '/special-employee/digital-id' },
-    { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/special-employee/notifications' },
-    { labelKey: 'reports', icon: <FileText className="w-5 h-5" />, path: '/special-employee/reports' },
-  ];
-
   // Dynamic workspace label/icon based on assigned job category
   const workspaceConfig = {
-    'ID & Registration': { label: 'ID & Registration', icon: <IdCard className="w-5 h-5" /> },
-    'Document Processing': { label: 'Documents', icon: <FileText className="w-5 h-5" /> },
-    'Resident Services': { label: 'Resident Services', icon: <Users className="w-5 h-5" /> },
-    'Complaint Handling': { label: 'Complaints', icon: <MessageSquare className="w-5 h-5" /> },
-    'Records Management': { label: 'Records', icon: <ClipboardList className="w-5 h-5" /> },
-    'IT & Systems': { label: 'IT & Systems', icon: <Settings className="w-5 h-5" /> },
+    'Identity & Registration': { label: 'Identity & Registration', icon: <IdCard className="w-5 h-5" /> },
+    'Certificates': { label: 'Certificates', icon: <FileText className="w-5 h-5" /> },
+    'Permits': { label: 'Permits', icon: <ClipboardList className="w-5 h-5" /> },
+    'Feedback & Support': { label: 'Feedback & Support', icon: <MessageSquare className="w-5 h-5" /> },
   };
   const ws = workspaceConfig[employeeJobCategory] || { label: 'My Workspace', icon: <ClipboardList className="w-5 h-5" /> };
 
@@ -113,13 +107,13 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'dashboard', icon: <Home className="w-5 h-5" />, path: '/resident/dashboard' },
     { labelKey: 'Services', icon: <Building2 className="w-5 h-5" />, path: '/resident/services' },
     { labelKey: 'My Requests', icon: <ClipboardList className="w-5 h-5" />, path: '/resident/my-requests' },
+    { labelKey: 'My Documents', icon: <Award className="w-5 h-5" />, path: '/resident/documents' },
     { labelKey: 'profile', icon: <Users className="w-5 h-5" />, path: '/resident/profile' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/resident/notifications' },
   ];
 
   const getMenuItems = () => {
     if (user?.role === 'admin') return adminMenuItems;
-    if (user?.role === 'special-employee') return specialEmployeeMenuItems;
     if (user?.role === 'employee') return employeeMenuItems;
     if (user?.role === 'resident') return residentMenuItems;
     return [];
@@ -172,15 +166,7 @@ export default function DashboardLayout({ children }) {
 
             {/* Right Section */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* ── Amharic / English Language Toggle ── */}
-              <button
-                onClick={toggleLanguage}
-                title={lang === 'en' ? 'Switch to Amharic' : 'ወደ እንግሊዝኛ ቀይር'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-              >
-                <Globe className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{t('switchLanguage')}</span>
-              </button>
+              <TranslateWidget />
 
               {/* Bell */}
               <button className="relative p-2 hover:bg-gray-100 rounded-lg" onClick={() => navigate(`/${user?.role}/notifications`)}>

@@ -67,6 +67,43 @@ const auditMiddleware = (action, targetType) => {
 };
 
 /**
+ * Middleware that auto-logs reads (GET)
+ */
+const auditReadMiddleware = (action, targetType) => {
+    return (req, res, next) => {
+        // Store the original json method
+        const originalJson = res.json.bind(res);
+
+        res.json = function (body) {
+            // Only log successful reads
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+                const logData = {
+                    actorId: req.user?.id,
+                    actorRole: req.user?.role || 'unknown',
+                    action,
+                    targetType,
+                    ipAddress: req.ip || req.connection?.remoteAddress,
+                    details: `Read sensitive data: ${req.method} ${req.originalUrl}`
+                };
+
+                // Extract target ID from params or response body
+                if (req.params?.id) {
+                    logData.targetId = req.params.id;
+                } else if (body?._id || body?.id) {
+                    logData.targetId = body._id || body.id;
+                }
+
+                createAuditLog(logData);
+            }
+
+            return originalJson(body);
+        };
+
+        next();
+    };
+};
+
+/**
  * Get audit logs (admin only)
  */
 const getAuditLogs = async (req, res) => {
@@ -141,6 +178,7 @@ const getAuditStats = async (req, res) => {
 module.exports = {
     createAuditLog,
     auditMiddleware,
+    auditReadMiddleware,
     getAuditLogs,
     getAuditStats
 };

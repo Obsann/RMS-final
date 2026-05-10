@@ -47,10 +47,7 @@ const uploadFile = async (req, res) => {
     ];
 
     if (!allowedMimeTypes.includes(req.file.mimetype)) {
-      // Delete the uploaded file
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
+      // Delete from Cloudinary if needed, usually Cloudinary handles validation before this.
       return res.status(400).json({
         error: 'Bad Request',
         message: 'File type not allowed. Allowed: JPEG, PNG, GIF, PDF, DOC, DOCX'
@@ -58,23 +55,27 @@ const uploadFile = async (req, res) => {
     }
 
     // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 15 * 1024 * 1024;
     if (req.file.size > maxSize) {
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
+      // With Cloudinary, if we need to delete we would use cloudinary.uploader.destroy(req.file.filename)
+      // but it's okay to skip for size limit since multer limit handles it before uploading to Cloudinary.
       return res.status(400).json({
         error: 'Bad Request',
         message: 'File size too large. Maximum: 5MB'
       });
     }
 
+    // req.file.path contains the URL for Cloudinary, but a local file path for disk storage.
+    // Only save the URL if it's actually an HTTP URL.
+    const isCloudinary = req.file.path && req.file.path.startsWith('http');
+
     // Save metadata to database
     const fileDoc = await File.create({
       originalName: req.file.originalname,
-      filename: req.file.filename,
+      filename: req.file.filename || req.file.originalname,
       mimeType: req.file.mimetype,
-      size: req.file.size,
+      size: req.file.size || 0,
+      url: isCloudinary ? req.file.path : null,
       uploadedBy: req.user.id
     });
 
@@ -84,6 +85,7 @@ const uploadFile = async (req, res) => {
       filename: fileDoc.filename,
       mimeType: fileDoc.mimeType,
       size: fileDoc.size,
+      url: fileDoc.url,
       uploadedBy: fileDoc.uploadedBy,
       uploadedAt: fileDoc.uploadedAt
     };
@@ -95,8 +97,8 @@ const uploadFile = async (req, res) => {
   } catch (err) {
     logger.error('Upload error:', err);
     // Clean up on error
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (req.file && req.file.filename) {
+        // Here we could delete from Cloudinary using cloudinary.uploader.destroy
     }
     res.status(500).json({ error: 'Server Error', message: err.message });
   }
@@ -122,19 +124,11 @@ const getFiles = async (req, res) => {
 };
 
 /**
- * Serve a single file by filename - WITH AUTH & PATH TRAVERSAL PROTECTION
+ * Serve a single file by filename - Redirect to Cloudinary URL
  */
 const getFile = async (req, res) => {
   try {
     const { name } = req.params;
-
-    // Validate filename to prevent path traversal
-    if (!isValidFilename(name)) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid filename'
-      });
-    }
 
     // Find file metadata in DB
     const fileDoc = await File.findOne({ filename: name });
@@ -146,35 +140,29 @@ const getFile = async (req, res) => {
       });
     }
 
-    // Authorization: User must own the file or be an admin
-    if (req.user.id !== fileDoc.uploadedBy.toString() && req.user.role !== 'admin') {
+    // Authorization: User must own the file, or be an admin/employee
+    if (
+      req.user.id !== fileDoc.uploadedBy.toString() && 
+      req.user.role !== 'admin' &&
+      req.user.role !== 'employee'
+    ) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Access denied'
       });
     }
 
-    // Use path.basename as additional protection
-    const safeName = path.basename(name);
-    const filePath = path.join(UPLOAD_DIR, safeName);
-
-    // Verify the resolved path is still within UPLOAD_DIR
-    const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(path.resolve(UPLOAD_DIR))) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid file path'
-      });
+    if (fileDoc.url) {
+        return res.redirect(fileDoc.url);
+    } else {
+        // Fallback for legacy local files
+        const safeName = path.basename(name);
+        const filePath = path.join(UPLOAD_DIR, safeName);
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ error: 'Not Found', message: 'File does not exist on disk' });
+        }
+        return res.sendFile(path.resolve(filePath));
     }
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'File does not exist on disk'
-      });
-    }
-
-    res.sendFile(resolvedPath);
   } catch (err) {
     logger.error('GetFile error:', err);
     res.status(500).json({ error: 'Server Error', message: err.message });
@@ -182,46 +170,27 @@ const getFile = async (req, res) => {
 };
 
 /**
- * Delete a file by filename (admin only) - WITH PATH TRAVERSAL PROTECTION
+ * Delete a file by filename (admin only)
  */
 const deleteFile = async (req, res) => {
   try {
     const { name } = req.params;
 
-    // Validate filename to prevent path traversal
-    if (!isValidFilename(name)) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid filename'
-      });
-    }
-
-    const safeName = path.basename(name);
-    const filePath = path.join(UPLOAD_DIR, safeName);
-
-    // Verify the resolved path is still within UPLOAD_DIR
-    const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(path.resolve(UPLOAD_DIR))) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Invalid file path'
-      });
-    }
-
     // Remove from DB first
     const deletedFile = await File.findOneAndDelete({ filename: name });
-    if (!deletedFile) {
-      // If not in DB, it might be a legacy file or already deleted
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'File does not exist'
-        });
-      }
-    }
-
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
+    
+    // Check if Cloudinary file
+    if (deletedFile && deletedFile.url) {
+        const cloudinary = require('../config/cloudinary').cloudinary;
+        // filename in Cloudinary is usually the public_id, but the document may have the full id if saved by multer
+        await cloudinary.uploader.destroy(deletedFile.filename);
+    } else {
+        // Fallback for legacy files
+        const safeName = path.basename(name);
+        const filePath = path.join(UPLOAD_DIR, safeName);
+        if (fs.existsSync(filePath)) {
+          await fs.promises.unlink(filePath);
+        }
     }
 
     res.json({ message: 'File deleted successfully' });

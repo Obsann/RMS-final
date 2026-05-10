@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, IdCard, User, FileText, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, IdCard, User, FileText, Users, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 import { getMeAPI, getMyDigitalId } from '../../utils/api';
 import { toast } from 'sonner';
 
@@ -41,7 +41,8 @@ export default function ResidentDashboard() {
 
   const quickActions = [
     { label: 'Report an Issue', icon: <AlertTriangle className="w-6 h-6" />, path: '/resident/requests', color: 'bg-orange-500' },
-    { label: 'View Digital ID', icon: <IdCard className="w-6 h-6" />, path: '/resident/digital-id', color: 'bg-purple-500' },
+    { label: 'View Digital ID', icon: <IdCard className="w-6 h-6" />, path: '/resident/services?category=identity', color: 'bg-purple-500' },
+    { label: 'My Documents', icon: <Award className="w-6 h-6" />, path: '/resident/documents', color: 'bg-emerald-500' },
     { label: 'Manage Profile', icon: <User className="w-6 h-6" />, path: '/resident/profile', color: 'bg-green-500' },
   ];
 
@@ -64,7 +65,7 @@ export default function ResidentDashboard() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-8">
-          <h1 className="text-white mb-2">እንኳን ደህና መጡ! — Welcome Back!</h1>
+          <h1 className="text-white mb-2">Welcome Back!</h1>
           <p className="text-blue-100">Your resident management dashboard</p>
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div>
@@ -87,7 +88,7 @@ export default function ResidentDashboard() {
         {/* Quick Actions */}
         <div>
           <h2 className="mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {quickActions.map((action, idx) => (
               <button
                 key={idx}
@@ -139,11 +140,10 @@ export default function ResidentDashboard() {
                 <button
                   key={i}
                   onClick={() => setAnnouncementPage(i)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                    i === announcementPage
+                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${i === announcementPage
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   {i + 1}
                 </button>

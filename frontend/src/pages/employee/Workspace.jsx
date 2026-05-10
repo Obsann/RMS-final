@@ -14,12 +14,10 @@ import PerformanceMetrics from '../../components/dashboard/PerformanceMetrics';
 
 // ── Category config (kept for header gradient) ──────────────────────────────
 const CATEGORIES = {
-  'ID & Registration': { gradient: 'from-blue-600 to-cyan-500' },
-  'Document Processing': { gradient: 'from-emerald-600 to-teal-500' },
-  'Resident Services': { gradient: 'from-violet-600 to-purple-500' },
-  'Complaint Handling': { gradient: 'from-orange-600 to-red-500' },
-  'Records Management': { gradient: 'from-amber-600 to-yellow-500' },
-  'IT & Systems': { gradient: 'from-slate-600 to-gray-500' },
+  'Identity & Registration': { gradient: 'from-blue-600 to-cyan-500' },
+  'Certificates': { gradient: 'from-emerald-600 to-teal-500' },
+  'Permits': { gradient: 'from-violet-600 to-purple-500' },
+  'Feedback & Support': { gradient: 'from-orange-600 to-red-500' },
 };
 
 /**

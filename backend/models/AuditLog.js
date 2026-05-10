@@ -42,7 +42,8 @@ const auditLogSchema = new mongoose.Schema(
                 'PASSWORD_RESET_REQUESTED',
                 'PASSWORD_RESET_COMPLETED',
                 'DEPENDENT_ADDED',
-                'DEPENDENT_REMOVED'
+                'DEPENDENT_REMOVED',
+                'SENSITIVE_DATA_READ'
             ]
         },
         targetId: {

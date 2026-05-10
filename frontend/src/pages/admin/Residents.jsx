@@ -5,6 +5,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { Plus, Search, Eye, Edit, IdCard, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUsers, createUser, updateUser } from '../../utils/api';
+import DualCalendarField from '../../components/ui/DualCalendarField';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -314,7 +315,7 @@ export default function AdminResidents() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Demographics</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><label className="block text-gray-700 mb-1 text-sm">Date of Birth</label><input type="date" value={formData.dateOfBirth} onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Date of Birth</label><DualCalendarField id="res-add-dob" value={formData.dateOfBirth} onChange={(val) => setFormData({ ...formData, dateOfBirth: val })} /></div>
               <div><label className="block text-gray-700 mb-1 text-sm">Gender</label>
                 <select value={formData.sex} onChange={e => setFormData({ ...formData, sex: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option>
@@ -411,7 +412,7 @@ export default function AdminResidents() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Demographics</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><label className="block text-gray-700 mb-1 text-sm">Date of Birth</label><input type="date" value={editData.dateOfBirth || ''} onChange={e => setEditData({ ...editData, dateOfBirth: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div><label className="block text-gray-700 mb-1 text-sm">Date of Birth</label><DualCalendarField id="res-edit-dob" value={editData.dateOfBirth || ''} onChange={(val) => setEditData({ ...editData, dateOfBirth: val })} /></div>
               <div><label className="block text-gray-700 mb-1 text-sm">Gender</label>
                 <select value={editData.sex || ''} onChange={e => setEditData({ ...editData, sex: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option>

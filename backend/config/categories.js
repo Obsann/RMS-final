@@ -68,20 +68,10 @@ const employeeCategories = {
 };
 
 const jobCategories = [
-  'ID & Registration',
-  'Document Processing',
-  'Resident Services',
-  'Complaint Handling',
-  'Records Management',
-  'IT & Systems',
-  'Maintenance & Repairs',
-  'Cleaning Services',
-  'Security Patrol',
-  'Financial Processing',
-  'Health Checkup',
-  'Education Support',
-  'Transport Assistance',
-  'General Assistance'
+  'Identity & Registration',
+  'Certificates',
+  'Permits',
+  'Feedback & Support',
 ];
 
 const taskPriorities = {

@@ -1,37 +1,40 @@
 import { Users, ClipboardList, Home } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
-
-const FEATURES = [
-  {
-    icon: Users,
-    title: 'Resident Management',
-    desc: 'Manage residents, dependants, digital IDs, and household records in one place.',
-    anim: 'welcome-anim-3',
-  },
-  {
-    icon: ClipboardList,
-    title: 'Task & Job Tracking',
-    desc: 'Track administrative tasks and employee assignments in real-time across departments.',
-    anim: 'welcome-anim-4',
-  },
-  {
-    icon: Home,
-    title: 'Request & Complaint System',
-    desc: 'Handle resident requests, complaints, and certificate applications seamlessly.',
-    anim: 'welcome-anim-5',
-  },
-];
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function WelcomeFeatures() {
+  const { t } = useLanguage();
+
+  const FEATURES = [
+    {
+      icon: Users,
+      title: t('residentMgmt'),
+      desc: t('residentMgmtDesc'),
+      anim: 'welcome-anim-3',
+    },
+    {
+      icon: ClipboardList,
+      title: t('taskTracking'),
+      desc: t('taskTrackingDesc'),
+      anim: 'welcome-anim-4',
+    },
+    {
+      icon: Home,
+      title: t('requestSystem'),
+      desc: t('requestSystemDesc'),
+      anim: 'welcome-anim-5',
+    },
+  ];
+
   return (
     <section className="bg-white py-16 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="font-extrabold text-blue-900 mb-3" style={{ fontSize: 'clamp(22px,3.5vw,34px)' }}>
-            Everything in One Platform
+            {t('welcomeTitle') || 'Everything in One Platform'}
           </h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto leading-relaxed">
-            Built for modern residential communities that demand efficiency and transparency.
+            {t('welcomeSubtitle') || 'Built for modern residential communities that demand efficiency and transparency.'}
           </p>
         </div>
 

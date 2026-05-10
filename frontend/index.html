@@ -5,10 +5,49 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Resident Management System UI</title>
+      <script type="text/javascript">
+        // Set default language to Afan Oromo if not already set
+        if (document.cookie.indexOf('googtrans') === -1) {
+          document.cookie = 'googtrans=/en/om; path=/';
+          document.cookie = 'googtrans=/en/om; path=/; domain=' + window.location.hostname;
+        }
+
+        function googleTranslateElementInit() {
+          new google.translate.TranslateElement({
+            pageLanguage: 'en',
+            includedLanguages: 'en,am,om,ti',
+            autoDisplay: false
+          }, 'google_translate_element');
+        }
+      </script>
+      <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     </head>
 
     <body>
+      <!-- Persistent Google Translate widget -->
+      <div id="google_translate_element" class="notranslate" style="position:fixed;bottom:24px;right:24px;z-index:9999;"></div>
       <div id="root"></div>
+
+      <!-- React Reconciliation Patch for Google Translate -->
+      <script>
+        if (typeof Node === 'function' && Node.prototype) {
+          var _origRemoveChild = Node.prototype.removeChild;
+          Node.prototype.removeChild = function(child) {
+            if (child.parentNode !== this) {
+              return child;
+            }
+            return _origRemoveChild.apply(this, arguments);
+          };
+
+          var _origInsertBefore = Node.prototype.insertBefore;
+          Node.prototype.insertBefore = function(newNode, refNode) {
+            if (refNode && refNode.parentNode !== this) {
+              return newNode;
+            }
+            return _origInsertBefore.apply(this, arguments);
+          };
+        }
+      </script>
       <script type="module" src="/src/main.tsx"></script>
     </body>
   </html>

@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, checkUser, updateUserStatus, changePassword, requestPasswordReset, resetPassword, googleCallback } = require('../controllers/authController.js');
+const { register, login, checkUser, updateUserStatus, changePassword, requestPasswordReset, resetPassword, googleCallback, sendOtp, verifyOtp } = require('../controllers/authController.js');
 const authMiddleware = require('../middleware/auth.js');
 const adminAuth = require('../middleware/adminAuth.js');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimiter.js');
@@ -9,6 +9,8 @@ const passport = require('passport');
 const router = express.Router();
 
 // Public routes (with rate limiting + validation)
+router.post('/send-otp', authLimiter, sendOtp);
+router.post('/verify-otp', authLimiter, verifyOtp);
 router.post('/register', registerLimiter, registerValidator, register);
 router.post('/login', authLimiter, loginValidator, login);
 router.post('/forgot-password', authLimiter, forgotPasswordValidator, requestPasswordReset);

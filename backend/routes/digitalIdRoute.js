@@ -8,7 +8,8 @@ const {
     verifyDigitalId,
     getDigitalIdStats,
     updateDigitalId,
-    updateDigitalIdStatus
+    updateDigitalIdStatus,
+    verifyByIdNumber
 } = require('../controllers/digitalIdController');
 const authMiddleware = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
@@ -16,10 +17,13 @@ const { roleAuth } = require('../middleware/roleAuth');
 const upload = require('../utils/uploadMiddleware');
 
 const router = express.Router();
-const digitalIdStaffAuth = roleAuth(['admin', 'employee', 'special-employee']);
-const digitalIdWorkflowAdminAuth = roleAuth(['admin', 'special-employee']);
+const digitalIdStaffAuth = roleAuth(['admin', 'employee']);
+const digitalIdWorkflowAdminAuth = roleAuth(['admin']);
 
-// All routes require authentication
+// ── PUBLIC route — no auth (QR code scan verification) ─────────────────────
+router.get('/verify/:idNumber', verifyByIdNumber);
+
+// All other routes require authentication
 router.use(authMiddleware);
 
 // Get statistics (admin only)
@@ -46,13 +50,13 @@ router.get('/me', (req, res, next) => {
     next();
 }, getDigitalIdByUser);
 
-// Approve digital ID (employee/admin/special-employee)
+// Approve digital ID (employee/admin)
 router.post('/:id/approve', digitalIdStaffAuth, approveDigitalId);
 
-// Revoke digital ID (employee/admin/special-employee)
+// Revoke digital ID (employee/admin)
 router.post('/:id/revoke', digitalIdStaffAuth, revokeDigitalId);
 
-// Update digital ID (admin/special-employee)
+// Update digital ID (admin only)
 router.put('/:id', digitalIdWorkflowAdminAuth, updateDigitalId);
 
 // Update status (e.g. verified by employee)

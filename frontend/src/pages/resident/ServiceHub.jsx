@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import ServiceForm from '../../components/services/ServiceForm';
 import { getServiceById, SERVICE_GROUPS } from '../../components/services/serviceConfig';
@@ -7,14 +7,16 @@ import {
   IdCard, Award, Shield, MessageCircle,
   ChevronRight, Home, Sparkles, ArrowRight, ArrowLeft,
   UserPlus, RefreshCw, Baby, Heart, FileText,
-  Building2, Briefcase, Calendar, AlertTriangle, Lock
+  Building2, Briefcase, Calendar, AlertTriangle, Lock, Scale, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { toPng } from 'html-to-image';
+import DigitalIDCard from '../../components/ui/DigitalIDCard';
 
 // Icon lookup
 const ICONS = {
   IdCard, UserPlus, RefreshCw, Award, Baby, Heart, FileText,
-  Shield, Building2, Briefcase, Calendar, MessageCircle, AlertTriangle,
+  Shield, Building2, Briefcase, Calendar, MessageCircle, AlertTriangle, Scale,
 };
 
 // Category card styling
@@ -63,19 +65,33 @@ const CATEGORY_CARDS = [
 
 export default function ServiceHub() {
   const navigate = useNavigate();
-  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeGroupId, setActiveGroupId] = useState(searchParams.get('category') || null);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
-  const [digitalIdStatus, setDigitalIdStatus] = useState(null);
+  const [digitalIdData, setDigitalIdData] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const servicesRef = useRef(null);
   const formRef = useRef(null);
 
   useEffect(() => {
+    if (searchParams.get('category')) {
+      setActiveGroupId(searchParams.get('category'));
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const checkDigitalId = async () => {
       try {
-        const { getMyDigitalId } = await import('../../utils/api');
-        const idData = await getMyDigitalId();
-        if (idData && idData.status !== 'none') {
-          setDigitalIdStatus(idData.status);
+        const { getMyDigitalId, getMeAPI } = await import('../../utils/api');
+        const [idData, meData] = await Promise.allSettled([
+          getMyDigitalId(),
+          getMeAPI()
+        ]);
+        if (idData.status === 'fulfilled' && idData.value && idData.value.status !== 'none') {
+          setDigitalIdData(idData.value);
+        }
+        if (meData.status === 'fulfilled' && meData.value) {
+          setCurrentUser(meData.value.user || meData.value);
         }
       } catch (e) {
         // Ignored
@@ -87,8 +103,8 @@ export default function ServiceHub() {
   const selectedService = selectedServiceId ? getServiceById(selectedServiceId) : null;
   const activeGroup = activeGroupId ? SERVICE_GROUPS.find(g => g.id === activeGroupId) : null;
   const activeCategoryCard = activeGroupId ? CATEGORY_CARDS.find(c => c.groupId === activeGroupId) : null;
-  const hasExistingDigitalIdRecord = !!digitalIdStatus && digitalIdStatus !== 'none';
-  const digitalIdStatusLabel = (digitalIdStatus || '').replace(/_/g, ' ');
+  const hasExistingDigitalIdRecord = !!digitalIdData && digitalIdData.status !== 'none';
+  const digitalIdStatusLabel = (digitalIdData?.status || '').replace(/_/g, ' ');
 
   // Scroll to services list when a category is selected
   useEffect(() => {
@@ -240,34 +256,123 @@ export default function ServiceHub() {
         {/* ───────────── LEVEL 2: Services within a Category ───────────── */}
         {activeGroupId && !selectedServiceId && activeGroup && (
           <div ref={servicesRef} className="space-y-4">
-            {/* Back button + Category header */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBack}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className={`w-10 h-10 rounded-xl ${activeCategoryCard.bgLight} ${activeCategoryCard.borderLight} border flex items-center justify-center`}>
-                <activeCategoryCard.icon className={`w-5 h-5 ${activeCategoryCard.textColor}`} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{activeCategoryCard.label}</h2>
-                <p className="text-sm text-gray-500">{activeCategoryCard.description}</p>
-              </div>
-            </div>
-
-            {activeGroupId === 'identity' && hasExistingDigitalIdRecord && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                  <Lock className="w-5 h-5 text-amber-700" />
+            {/* Profile Completion Blocker */}
+            {currentUser && (!currentUser.unit || !currentUser.address || !currentUser.phone) ? (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">New ID Application is read-only</p>
-                  <p className="text-sm text-amber-800 mt-1">
-                    Your Digital ID record is already on file with a <span className="capitalize font-medium">{digitalIdStatusLabel}</span> status.
-                    Use <strong>ID Renewal</strong> for replacements or updates, or open Digital ID under your profile to review the current application.
-                  </p>
+                <h3 className="text-xl font-bold text-red-900 mb-2">Profile Incomplete</h3>
+                <p className="text-red-700 mb-6 max-w-md mx-auto">
+                  You cannot access Kebele services until your profile is complete. Please update your <strong>Unit Number, Address, and Phone Number</strong>.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button onClick={handleBack} className="px-5 py-2.5 bg-white border border-red-200 text-red-700 font-medium rounded-xl hover:bg-red-100 transition-colors">
+                    Go Back
+                  </button>
+                  <button onClick={() => navigate('/resident/profile')} className="px-5 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-colors">
+                    Update Profile Now
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Back button + Category header */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleBack}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div className={`w-10 h-10 rounded-xl ${activeCategoryCard.bgLight} ${activeCategoryCard.borderLight} border flex items-center justify-center`}>
+                    <activeCategoryCard.icon className={`w-5 h-5 ${activeCategoryCard.textColor}`} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">{activeCategoryCard.label}</h2>
+                    <p className="text-sm text-gray-500">{activeCategoryCard.description}</p>
+                  </div>
+                </div>
+
+                {activeGroupId === 'identity' && hasExistingDigitalIdRecord && (
+              <div className="mb-6 space-y-4">
+                <h3 className="text-lg font-bold text-gray-900">Your Kebele Digital ID</h3>
+                {['issued', 'approved'].includes(digitalIdData.status) ? (
+                  <div className="space-y-4">
+                    <DigitalIDCard digitalId={digitalIdData} resident={currentUser || digitalIdData.user} currentStatus={digitalIdData.status} />
+                    <div className="flex justify-center">
+                      <button
+                        onClick={async () => {
+                          // Find whichever side is currently visible
+                          const front = document.getElementById('digital-id-card');
+                          const back  = document.getElementById('digital-id-card-back');
+                          const el = (front && front.style.display !== 'none') ? front
+                                   : (back  && back.style.display  !== 'none') ? back
+                                   : null;
+                          if (!el) { toast.error('Card not found'); return; }
+                          try {
+                            const dataUrl = await toPng(el, {
+                              cacheBust: true,
+                              pixelRatio: 3,
+                              quality: 1,
+                            });
+                            const link = document.createElement('a');
+                            link.href = dataUrl;
+                            const side = el.id === 'digital-id-card' ? 'front' : 'back';
+                            link.download = `Kebele_Digital_ID_${(digitalIdData.idNumber || 'card')}_${side}.png`;
+                            link.click();
+                            toast.success('Digital ID downloaded!');
+                          } catch (err) {
+                            console.error('Export error:', err);
+                            toast.error('Failed to export ID image');
+                          }
+                        }}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                      >
+                        <FileText className="w-5 h-5" />
+                        Download ID as Image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-yellow-900">
+                          {digitalIdData.status === 'verified' ? 'Verification Completed' :
+                           digitalIdData.status === 'processing' ? 'Digital ID In Processing' :
+                           'Request Under Review'}
+                        </h2>
+                        <p className="text-yellow-700 text-sm">Submitted on {new Date(digitalIdData.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div className="ml-auto">
+                        <span className="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full text-sm font-semibold">
+                          {digitalIdData.status === 'verified' ? 'Awaiting Issue' :
+                           digitalIdData.status === 'processing' ? 'Processing' :
+                           'Pending Review'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-yellow-800">
+                      {digitalIdData.status === 'verified' ? 'Your details have been verified by staff and your Digital ID is being finalized for issuance.' :
+                       digitalIdData.status === 'processing' ? 'Your Digital ID has cleared review and is in the final preparation stage before it becomes active.' :
+                       'Your Digital ID request is being reviewed by the Kebele administration. This usually takes 1-2 business days. You will be notified once a decision is made.'}
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3 mt-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                    <Lock className="w-5 h-5 text-amber-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">New ID Application is Locked</p>
+                    <p className="text-sm text-amber-800 mt-1">
+                      You already have a Digital ID record on file. Use the <strong>ID Renewal</strong> service below for replacements or updates.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -320,7 +425,9 @@ export default function ServiceHub() {
                 );
               })}
             </div>
-          </div>
+          </>
+          )}
+        </div>
         )}
 
         {/* ───────────── LEVEL 3: Dynamic Form ───────────── */}

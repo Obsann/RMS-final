@@ -6,9 +6,10 @@ const { autoAssignJob } = require('./jobController');
 
 // Maps categoryTag → employee jobCategory for auto-assignment
 const CATEGORY_TAG_TO_JOB_CATEGORY = {
-    'ID_REGISTRATION': 'ID & Registration',
-    'DOCUMENT_PROCESSING': 'Document Processing',
-    'COMPLAINT_HANDLING': 'Complaint Handling',
+    'ID_REGISTRATION': 'Identity & Registration',
+    'CERTIFICATES': 'Certificates',
+    'PERMITS': 'Permits',
+    'FEEDBACK_SUPPORT': 'Feedback & Support',
 };
 
 /**
@@ -32,6 +33,65 @@ const createRequest = async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'User not found' });
         }
 
+        // --- Oromia Regulation No. 259/2026 Checks ---
+        if (type === 'permit' && category === 'construction_legalization') {
+            const blockedCities = ['Shaggar', 'Adama', 'Bishoftu'];
+            const city = formData?.city || formData?.address?.city;
+            if (city && blockedCities.includes(city)) {
+                return res.status(400).json({ error: 'Bad Request', message: `Construction legalization is not permitted in ${city} under Regulation 259/2026.` });
+            }
+
+            // Check date range
+            const buildDate = formData?.buildDate ? new Date(formData.buildDate) : null;
+            const minDate = new Date('2013-03-19');
+            const maxDate = new Date('2026-03-26');
+            if (buildDate && (buildDate < minDate || buildDate > maxDate)) {
+                return res.status(400).json({ error: 'Bad Request', message: 'Construction must be built between March 19, 2013 and March 26, 2026.' });
+            }
+
+            // Check 1 house per person
+            const existingPermit = await Request.findOne({ resident: req.user.id, type: 'permit', category: 'construction_legalization', isDeleted: { $ne: true } });
+            if (existingPermit) {
+                return res.status(400).json({ error: 'Bad Request', message: 'Only one construction legalization permit is allowed per person.' });
+            }
+        }
+
+        // --- Vital Events Validiations & Late Registration ---
+        let lateRegistration = false;
+        if (type === 'certificate') {
+            if (category === 'marriage' || category === 'divorce') {
+                const witnesses = formData?.witnesses || [];
+                if (!Array.isArray(witnesses) || witnesses.length < 2) {
+                    return res.status(400).json({ error: 'Bad Request', message: 'Two witnesses are required for this certificate.' });
+                }
+                
+                if (category === 'divorce') {
+                    const proof = formData?.courtDecree || formData?.jaarsummaa;
+                    if (!proof) {
+                        return res.status(400).json({ error: 'Bad Request', message: 'Proof of divorce (Court Decree or Jaarsummaa) is required.' });
+                    }
+                }
+                
+                const eventDate = formData?.eventDate ? new Date(formData.eventDate) : null;
+                if (eventDate) {
+                    const daysDiff = (new Date() - eventDate) / (1000 * 60 * 60 * 24);
+                    if (daysDiff > 30) lateRegistration = true;
+                }
+            } else if (category === 'birth') {
+                const dob = formData?.dateOfBirth ? new Date(formData.dateOfBirth) : null;
+                if (dob) {
+                    const daysDiff = (new Date() - dob) / (1000 * 60 * 60 * 24);
+                    if (daysDiff > 90) lateRegistration = true;
+                }
+            } else if (category === 'death') {
+                const eventDate = formData?.dateOfDeath ? new Date(formData.dateOfDeath) : null;
+                if (eventDate) {
+                    const daysDiff = (new Date() - eventDate) / (1000 * 60 * 60 * 24);
+                    if (daysDiff > 30) lateRegistration = true;
+                }
+            }
+        }
+
         const request = await Request.create({
             type,
             resident: req.user.id,
@@ -44,7 +104,19 @@ const createRequest = async (req, res) => {
             categoryTag: categoryTag || null,
             formData: formData || null,
             attachments: attachments || [],
+            lateRegistration
         });
+
+        // --- Profile Photo Auto-Sync for ID Applications ---
+        if (categoryTag === 'ID_REGISTRATION') {
+            const photoAttachment = attachments?.find(a => 
+                a.originalName && a.originalName.match(/\.(jpg|jpeg|png|webp)$/i)
+            );
+            if (photoAttachment && photoAttachment.filename) {
+                user.profilePhoto = photoAttachment.filename;
+                await user.save();
+            }
+        }
 
         let job = null;
 
@@ -108,15 +180,15 @@ const getRequests = async (req, res) => {
     try {
         const { type, status, page = 1, limit = 20, escalatedOnly, categoryTag, user: userId } = req.query;
 
-        const query = {};
+        const query = { isDeleted: { $ne: true } };
 
         // Admin: default to escalated-only, but allow escalatedOnly=false for pipeline view
         if (req.user.role === 'admin') {
             if (escalatedOnly !== 'false') {
                 query.isEscalated = true;
             }
-        } else if (req.user.role === 'employee' || req.user.role === 'special-employee') {
-            // Employees and special employees see ALL resident requests so they can handle them
+        } else if (req.user.role === 'employee') {
+            // Employees see ALL resident requests so they can handle them
             // No filter by resident — they see everything
         } else {
             // Residents only see their own requests
@@ -135,6 +207,7 @@ const getRequests = async (req, res) => {
                 .populate('resident', 'username email unit phone')
                 .populate('escalatedBy', 'username email')
                 .populate('assignedEmployee', 'username email jobCategory')
+                .populate('issuedDocument.issuedBy', 'username email')
                 .populate('job')
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -176,7 +249,6 @@ const getRequestById = async (req, res) => {
 
         // Check authorization
         if (req.user.role !== 'admin' &&
-            req.user.role !== 'special-employee' &&
             req.user.role !== 'employee' &&
             request.resident._id.toString() !== req.user.id) {
             return res.status(403).json({ error: 'Forbidden', message: 'Access denied' });
@@ -217,17 +289,27 @@ const updateRequestStatus = async (req, res) => {
 
         if (status === 'completed') {
             updateData.resolvedAt = new Date();
+            // Generate Registration Number if not present
+            if (!request.issuedDocument?.registrationNumber) {
+                const year = new Date().getFullYear();
+                const rand = Math.floor(10000 + Math.random() * 90000); // 5 digits
+                updateData.issuedDocument = {
+                    ...(request.issuedDocument || {}),
+                    registrationNumber: `ORO-JMA-${year}-${rand}`,
+                    issuedAt: new Date()
+                };
+            }
         }
 
-        const request = await Request.findByIdAndUpdate(id, updateData, { new: true })
+        const requestUpdated = await Request.findByIdAndUpdate(id, updateData, { new: true })
             .populate('resident', 'username email');
 
-        if (!request) {
+        if (!requestUpdated) {
             return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
         }
 
         // ── Bidirectional sync: cascade to linked Job ──
-        if (request.job) {
+        if (requestUpdated.job) {
             const jobStatusMap = {
                 'completed': 'completed',
                 'rejected': 'cancelled',
@@ -304,7 +386,7 @@ const convertToJob = async (req, res) => {
 };
 
 /**
- * Delete request (admin only)
+ * Delete request (admin only) - Hard delete
  */
 const deleteRequest = async (req, res) => {
     try {
@@ -328,7 +410,34 @@ const deleteRequest = async (req, res) => {
 };
 
 /**
- * Escalate request to admin (employee/special-employee)
+ * Soft delete a request (Admin/Resident)
+ */
+const softDeleteRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const request = await Request.findById(id);
+        
+        if (!request) {
+            return res.status(404).json({ error: 'Not Found', message: 'Request not found' });
+        }
+        
+        // Check authorization
+        if (req.user.role !== 'admin' && request.resident.toString() !== req.user.id) {
+            return res.status(403).json({ error: 'Forbidden', message: 'Access denied' });
+        }
+
+        request.isDeleted = true;
+        await request.save();
+
+        res.json({ message: 'Request soft deleted successfully' });
+    } catch (error) {
+        logger.error('SoftDeleteRequest error:', error);
+        res.status(500).json({ error: 'Server Error', message: error.message });
+    }
+};
+
+/**
+ * Escalate request to admin (employee)
  * Marks a request as escalated so it appears on the admin dashboard
  */
 const escalateRequest = async (req, res) => {
@@ -400,6 +509,7 @@ module.exports = {
     updateRequestStatus,
     convertToJob,
     deleteRequest,
+    softDeleteRequest,
     escalateRequest,
     getRequestStats
 };

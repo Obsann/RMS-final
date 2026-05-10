@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getMeAPI, updateUser, api, getMyDigitalId } from '../../utils/api';
+import DualCalendarField from '../../components/ui/DualCalendarField';
 
 // Mandatory fields that must be filled to request a Digital ID
 // (nationality removed since system is for Hermata Merkato, Jimma City, Ethiopia)
@@ -201,8 +202,9 @@ export default function ResidentProfile() {
     }
   };
 
-  const setEdit = (field) => (e) => {
-    setEditFormData(p => ({ ...p, [field]: e.target.value }));
+  const setEdit = (field) => (val) => {
+    const v = val && val.target ? val.target.value : val;
+    setEditFormData(p => ({ ...p, [field]: v }));
     if (editErrors[field]) setEditErrors(p => ({ ...p, [field]: '' }));
   };
 
@@ -217,13 +219,17 @@ export default function ResidentProfile() {
       formData.append('file', file);
       const uploadRes = await fetch('/api/uploads', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-upload-type': 'profile-photo'
+        },
         body: formData
       });
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) throw new Error(uploadData.message || 'Upload failed');
 
-      const photoPath = `/uploads/${uploadData.file.filename}`;
+      // Use Cloudinary URL directly if available, else fallback to API download route
+      const photoPath = uploadData.file.url || `/api/uploads/${uploadData.file.filename}`;
       await updateUser(user.id || user._id, { profilePhoto: photoPath });
       // Update local state immediately so photo renders right away
       setUser(prev => ({ ...prev, profilePhoto: photoPath }));
@@ -486,8 +492,12 @@ export default function ResidentProfile() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" /> Date of Birth <span className="text-red-500">*</span>
               </label>
-              <input type="date" value={editFormData.dateOfBirth || ''} onChange={setEdit('dateOfBirth')}
-                className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${editErrors.dateOfBirth ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`} />
+              <DualCalendarField
+                id="profile-dateOfBirth"
+                value={editFormData.dateOfBirth || ''}
+                onChange={setEdit('dateOfBirth')}
+                required
+              />
               {editErrors.dateOfBirth && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.dateOfBirth}</p>}
             </div>
             <div>

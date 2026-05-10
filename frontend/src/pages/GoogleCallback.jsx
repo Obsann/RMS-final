@@ -33,7 +33,6 @@ export default function GoogleCallback() {
 
         const role = data.user?.role;
         if (role === 'admin') navigate('/admin/dashboard', { replace: true });
-        else if (role === 'special-employee') navigate('/special-employee/dashboard', { replace: true });
         else if (role === 'employee') navigate('/employee/dashboard', { replace: true });
         else navigate('/resident/dashboard', { replace: true });
       })

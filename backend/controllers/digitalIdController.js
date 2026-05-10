@@ -6,7 +6,7 @@ const { checkLiveness } = require('../utils/livenessCheck');
 
 const DIGITAL_ID_ACTIVE_STATUSES = ['approved', 'issued'];
 const DIGITAL_ID_REVIEW_STATUSES = ['pending', 'verified', 'processing'];
-const DIGITAL_ID_DIRECT_ISSUE_ROLES = ['employee', 'special-employee'];
+const DIGITAL_ID_DIRECT_ISSUE_ROLES = ['employee'];
 
 function buildDigitalIdListQuery(req) {
     const queryParts = [];
@@ -216,7 +216,7 @@ const getDigitalIdByUser = async (req, res) => {
 };
 
 /**
- * Approve and issue digital ID (employee/admin/special-employee)
+ * Approve and issue digital ID (employee/admin)
  */
 const approveDigitalId = async (req, res) => {
     try {
@@ -238,9 +238,9 @@ const approveDigitalId = async (req, res) => {
             });
         }
 
-        // Set expiry to 1 year from now
+        // Set expiry to 10 years from now (Proclamation 1284/2023)
         const expiresAt = new Date();
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        expiresAt.setFullYear(expiresAt.getFullYear() + 10);
 
         const wasAlreadyVerified = digitalId.verifications.some(
             (entry) => entry.verifiedBy?.toString() === req.user.id && entry.method === 'manual'
@@ -284,7 +284,7 @@ const approveDigitalId = async (req, res) => {
 };
 
 /**
- * Reject/Revoke digital ID (employee/admin/special-employee)
+ * Reject/Revoke digital ID (employee/admin)
  */
 const revokeDigitalId = async (req, res) => {
     try {
@@ -416,7 +416,7 @@ const getDigitalIdStats = async (req, res) => {
 };
 
 /**
- * Update Digital ID (admin/special-employee)
+ * Update Digital ID (admin only)
  * Allows assigning to employee or marking as issued.
  */
 const updateDigitalId = async (req, res) => {
@@ -501,6 +501,57 @@ const updateDigitalIdStatus = async (req, res) => {
     }
 };
 
+/**
+ * PUBLIC — Verify Digital ID by idNumber (called when QR code is scanned)
+ * No authentication required
+ */
+const verifyByIdNumber = async (req, res) => {
+    try {
+        const { idNumber } = req.params;
+        const digitalId = await DigitalId.findOne({ idNumber })
+            .populate('user', 'username profilePhoto');
+
+        if (!digitalId) {
+            return res.status(404).json({
+                status: 'NOT_FOUND',
+                message: 'No Digital ID found with this number'
+            });
+        }
+
+        const now = new Date();
+        const isExpired = digitalId.expiresAt && digitalId.expiresAt < now;
+        const isRevoked = digitalId.status === 'revoked';
+        const isIssued = digitalId.status === 'issued';
+
+        const verificationStatus = isRevoked ? 'REVOKED' : isExpired ? 'EXPIRED' : isIssued ? 'VALID' : 'PENDING';
+
+        // Return only safe, public-facing fields
+        res.json({
+            status: verificationStatus,
+            idNumber: digitalId.idNumber,
+            fullName: [
+                digitalId.firstName,
+                digitalId.fatherName,
+                digitalId.grandfatherName
+            ].filter(Boolean).join(' ') || digitalId.user?.username || 'Unknown',
+            fullNameAmharic: [
+                digitalId.firstNameAmharic,
+                digitalId.fatherNameAmharic,
+                digitalId.grandfatherNameAmharic
+            ].filter(Boolean).join(' ') || '',
+            gender: digitalId.gender || '-',
+            nationality: digitalId.nationality || 'Ethiopian',
+            issuedAt: digitalId.issuedAt,
+            expiresAt: digitalId.expiresAt,
+            issuingAuthority: digitalId.issuingAuthority || 'Hermata Merkato Kebele',
+            revokeReason: isRevoked ? digitalId.revokeReason : undefined
+        });
+    } catch (error) {
+        logger.error('VerifyByIdNumber error:', error);
+        res.status(500).json({ error: 'Server Error', message: error.message });
+    }
+};
+
 module.exports = {
     generateDigitalId,
     getAllDigitalIds,
@@ -510,5 +561,6 @@ module.exports = {
     verifyDigitalId,
     getDigitalIdStats,
     updateDigitalId,
-    updateDigitalIdStatus
+    updateDigitalIdStatus,
+    verifyByIdNumber
 };

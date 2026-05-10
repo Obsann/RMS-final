@@ -2,11 +2,14 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Upload, X, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { api } from '../../utils/api';
 
-const MAX_FILES = 5;
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+const DEFAULT_MAX_FILES = 5;
+const DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const DEFAULT_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-export default function DocumentUpload({ value = [], onChange }) {
+export default function DocumentUpload({ value = [], onChange, maxSize, acceptedTypes, maxFiles, categoryTag }) {
+  const MAX_FILES = maxFiles || DEFAULT_MAX_FILES;
+  const MAX_SIZE = maxSize || DEFAULT_MAX_SIZE;
+  const ACCEPTED_TYPES = acceptedTypes || DEFAULT_ACCEPTED_TYPES;
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
@@ -17,9 +20,14 @@ export default function DocumentUpload({ value = [], onChange }) {
     formData.append('file', file);
 
     const token = localStorage.getItem('rms_token');
+    const headers = { Authorization: `Bearer ${token}` };
+    if (categoryTag) {
+      headers['x-category-tag'] = categoryTag;
+    }
+
     const res = await fetch('/api/uploads', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
       body: formData,
     });
 
@@ -29,7 +37,7 @@ export default function DocumentUpload({ value = [], onChange }) {
     }
 
     return res.json();
-  }, []);
+  }, [categoryTag]);
 
   const handleFiles = useCallback(async (fileList) => {
     setError('');
@@ -127,7 +135,7 @@ export default function DocumentUpload({ value = [], onChange }) {
           {uploading ? 'Uploading...' : 'Drag & drop files here, or click to browse'}
         </p>
         <p className="text-xs text-gray-500 mt-1">
-          JPEG, PNG, or PDF — Max 5MB each — Up to {MAX_FILES} files
+          {ACCEPTED_TYPES.map(t => t.split('/')[1]?.toUpperCase()).join(', ')} — Max {Math.round(MAX_SIZE / (1024 * 1024))}MB each — Up to {MAX_FILES} files
         </p>
         {uploading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded-xl">

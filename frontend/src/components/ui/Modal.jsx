@@ -1,9 +1,13 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   const titleId = useId();
   const closeButtonRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  // Keep the ref updated without triggering effects
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -18,11 +22,10 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
     const previousOverflow = document.body.style.overflow;
     const previouslyFocused = document.activeElement;
     document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
 
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -33,7 +36,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       window.removeEventListener('keydown', handleEscape);
       previouslyFocused?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

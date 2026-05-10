@@ -382,7 +382,7 @@ const getUsersByRole = async (req, res) => {
   try {
     const { role } = req.params;
 
-    if (!['resident', 'employee', 'special-employee', 'admin'].includes(role)) {
+    if (!['resident', 'employee', 'admin'].includes(role)) {
       return res.status(400).json({
         error: "Bad Request",
         message: "Invalid role specified"

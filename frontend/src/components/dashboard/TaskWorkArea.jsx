@@ -108,6 +108,44 @@ function ActionConsole({ item, onAction, submitting }) {
   );
 }
 
+// ── Attachments Gallery ──────────────────────────────────────────────────────
+function AttachmentGallery({ attachments }) {
+  if (!attachments || !attachments.length) return null;
+
+  return (
+    <div className="mb-4 p-4 border border-gray-200 rounded-xl bg-white shadow-sm">
+      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <Image className="w-4 h-4 text-gray-500" />
+        Uploaded Evidence & Documents
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {attachments.map((a, i) => {
+          const isImage = a.originalName?.match(/\.(jpg|jpeg|png|gif)$/i);
+          return (
+            <a
+              key={i}
+              href={`/api/uploads/${a.filename}?token=${localStorage.getItem('rms_token')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 rounded-lg transition-colors group"
+            >
+              <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
+                {isImage ? <Image className="w-5 h-5 text-indigo-500" /> : <FileText className="w-5 h-5 text-indigo-500" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-indigo-700">
+                  {a.originalName || a.filename || 'Document'}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-0.5">Click to view</p>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Role Module: ID & Registration ───────────────────────────────────────────
 function IDRegistrationModule({ item, onAction, submitting }) {
   const checklist = [
@@ -219,17 +257,6 @@ function ComplaintModule({ item, onAction, submitting }) {
           )}
         </div>
       </div>
-      {/* Evidence Gallery */}
-      {item?.attachments?.length > 0 && (
-        <div className="p-4 border border-gray-200 rounded-xl">
-          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Image className="w-3.5 h-3.5" />Evidence Gallery</p>
-          <div className="grid grid-cols-3 gap-2">
-            {item.attachments.map((a, i) => (
-              <div key={i} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center"><Image className="w-6 h-6 text-gray-300" /></div>
-            ))}
-          </div>
-        </div>
-      )}
       {/* Response area */}
       <div>
         <label className="block text-xs font-semibold text-gray-700 mb-1.5">Your Response</label>
@@ -246,7 +273,6 @@ function ComplaintModule({ item, onAction, submitting }) {
 function DocumentModule({ item, onAction, submitting }) {
   const saved = loadAutoSave(item?._id);
   const [response, setResponse] = useState(saved.response || '');
-  const [template, setTemplate] = useState('');
   useAutoSave(item?._id, { response });
 
   const handleSendResponse = async () => {
@@ -270,24 +296,13 @@ function DocumentModule({ item, onAction, submitting }) {
         </div>
         <span className="px-3 py-1 rounded-lg text-xs font-bold bg-green-50 text-green-700 border border-green-200">Paid ✓</span>
       </div>
-      {/* Template Selector */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Certificate Template</label>
-        <select value={template} onChange={e => setTemplate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500">
-          <option value="">Select template...</option>
-          <option value="residence">Residence Certificate</option>
-          <option value="good_conduct">Good Conduct Certificate</option>
-          <option value="clearance">Clearance Letter</option>
-          <option value="birth_registration">Birth Registration</option>
-          <option value="income">Income Verification</option>
-        </select>
-      </div>
-      {/* Digital Signature */}
-      <div className="p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50 text-center">
-        <PenTool className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-xs font-semibold text-gray-600">Digital Signature</p>
-        <p className="text-[10px] text-gray-400 mt-0.5">Click to apply your secure signature</p>
-        <button className="mt-2 px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">Apply Signature</button>
+      {/* Auto-signature notice */}
+      <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50">
+        <CheckCircle className="w-5 h-5 text-emerald-600" />
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-emerald-800">Digital Signature</p>
+          <p className="text-[10px] text-emerald-600">Your signature will be automatically watermarked on the document when you approve</p>
+        </div>
       </div>
       {/* Response */}
       <div>
@@ -338,12 +353,10 @@ function RecordsModule({ item, resident }) {
 
 // ── TASK_COMPONENT_MAP ───────────────────────────────────────────────────────
 const TASK_COMPONENT_MAP = {
-  'ID & Registration': IDRegistrationModule,
-  'Document Processing': DocumentModule,
-  'Complaint Handling': ComplaintModule,
-  'Resident Services': ComplaintModule,
-  'Records Management': RecordsModule,
-  'IT & Systems': RecordsModule,
+  'Identity & Registration': IDRegistrationModule,
+  'Certificates': DocumentModule,
+  'Permits': DocumentModule,
+  'Feedback & Support': ComplaintModule,
 };
 
 // ── Form Data Panel (shows resident's submitted data) ────────────────────────
@@ -446,7 +459,10 @@ export default function TaskWorkArea({ item, jobCategory, resident, onAction, su
         )}
 
         {/* Form Data from source request */}
-        <FormDataPanel formData={item.formData} serviceType={item.serviceType} />
+        <FormDataPanel formData={item.formData || item.sourceRequest?.formData} serviceType={item.serviceType || item.sourceRequest?.serviceType} />
+
+        {/* Attachments */}
+        <AttachmentGallery attachments={item.attachments || item.sourceRequest?.attachments} />
 
         {/* Role-specific module */}
         <Module item={item} resident={resident} onAction={onAction} submitting={submitting} />

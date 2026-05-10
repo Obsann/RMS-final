@@ -9,6 +9,7 @@ import {
     CheckCircle2, ChevronDown, ChevronUp, Briefcase, MapPin, GraduationCap,
     Heart, Calendar, CreditCard, Building2, Users, Contact
 } from 'lucide-react';
+import DualCalendarField from '../../components/ui/DualCalendarField';
 
 /* ─────────────────────────────────────────────────────── */
 
@@ -208,7 +209,7 @@ export default function EmployeeProfile() {
                                     <ReadValue>{profile?.nationalId}</ReadValue>
                                 </FormRow>
                                 <FormRow label="Date of Birth" editMode={editMode}>
-                                    <input type="date" value={form.dateOfBirth} onChange={e => setForm(p => ({ ...p, dateOfBirth: e.target.value }))} className={INPUT} />
+                                    <DualCalendarField id="emp-prof-dob" value={form.dateOfBirth} onChange={(val) => setForm(p => ({ ...p, dateOfBirth: val }))} />
                                     <ReadValue>{profile?.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString() : null}</ReadValue>
                                 </FormRow>
                                 <FormRow label="Gender" editMode={editMode}>
@@ -259,7 +260,7 @@ export default function EmployeeProfile() {
                                     <ReadValue>{profile?.employeeId}</ReadValue>
                                 </FormRow>
                                 <FormRow label="Employment Start Date" editMode={editMode}>
-                                    <input type="date" value={form.employmentStartDate} onChange={e => setForm(p => ({ ...p, employmentStartDate: e.target.value }))} className={INPUT} />
+                                    <DualCalendarField id="emp-prof-startdate" value={form.employmentStartDate} onChange={(val) => setForm(p => ({ ...p, employmentStartDate: val }))} />
                                     <ReadValue>{profile?.employmentStartDate ? new Date(profile.employmentStartDate).toLocaleDateString() : null}</ReadValue>
                                 </FormRow>
                                 <FormRow label="Office Location" editMode={editMode}>
@@ -415,7 +416,7 @@ function PasswordSection({ showPwForm, setShowPwForm, pwForm, setPwForm, showPw,
 function LegalSection({ role }) {
     const [openSection, setOpenSection] = useState(null);
     const toggle = (key) => setOpenSection(prev => prev === key ? null : key);
-    const ROLE_LABEL = { admin: 'System Administrator', 'special-employee': 'Senior Staff Member', employee: 'Staff Member' }[role] ?? 'Staff Member';
+    const ROLE_LABEL = { admin: 'System Administrator', employee: 'Staff Member' }[role] ?? 'Staff Member';
 
     const sections = [
         { key: 'access', icon: ShieldCheck, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', title: 'Platform Access & Authorization', content: [`As a ${ROLE_LABEL}, you are granted access to the Resident Management System (RMS) solely for the performance of your official duties as defined by your role.`, 'Unauthorized access to restricted system areas, data sets, or administrative functions beyond your designated role is strictly prohibited.', role === 'admin' ? 'As a System Administrator, your elevated access privileges carry additional legal responsibility. Any misuse, unauthorized configuration change, or data manipulation constitutes a serious breach of your administrative obligations.' : 'Access credentials are personal and non-transferable. Sharing login details with any third party — including colleagues — is a disciplinary offense.', 'Your access may be revoked at any time by the system administrator if a policy violation, security threat, or role change is identified.'] },

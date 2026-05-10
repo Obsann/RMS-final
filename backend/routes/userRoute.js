@@ -20,16 +20,16 @@ const router = express.Router();
 // All routes require authentication
 router.use(authMiddleware);
 
-// Get all users - admin and special-employee
+// Get all users - admin and employee
 router.get('/', staffAuth, getAllUsers);
 
-// Get users by role - admin and special-employee
+// Get users by role - admin and employee
 router.get('/role/:role', staffAuth, getUsersByRole);
 
 // Get user by ID - users can get their own, admins can get any
 router.get('/:id', getUserById);
 
-// Create user - admin and special-employee (triggers suspicious activity alert for sp.employees)
+// Create user - admin and employee
 router.post('/', staffAuth, suspiciousActivityMiddleware, createUser);
 
 // Update user - users can update their own, admins can update any

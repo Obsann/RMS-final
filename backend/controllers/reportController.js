@@ -20,7 +20,6 @@ const getOverview = async (req, res) => {
             totalResidents,
             approvedResidents,
             totalEmployees,
-            totalSpecialEmployees,
             totalRequests,
             pendingRequests,
             inProgressRequests,
@@ -41,7 +40,6 @@ const getOverview = async (req, res) => {
             User.countDocuments({ role: 'resident' }),
             User.countDocuments({ role: 'resident', status: 'approved' }),
             User.countDocuments({ role: 'employee' }),
-            User.countDocuments({ role: 'special-employee' }),
             Request.countDocuments(),
             Request.countDocuments({ status: 'pending' }),
             Request.countDocuments({ status: 'in-progress' }),
@@ -70,8 +68,7 @@ const getOverview = async (req, res) => {
                 approved: approvedUsers,
                 residents: totalResidents,
                 approvedResidents,
-                employees: totalEmployees,
-                specialEmployees: totalSpecialEmployees
+                employees: totalEmployees
             },
             requests: {
                 total: totalRequests,

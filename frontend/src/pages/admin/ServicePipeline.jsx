@@ -22,9 +22,10 @@ const PIPELINE_COLUMNS = [
 
 const CATEGORY_FILTERS = [
   { key: 'all', label: 'All Categories' },
-  { key: 'ID_REGISTRATION', label: 'ID & Registration' },
-  { key: 'DOCUMENT_PROCESSING', label: 'Document Processing' },
-  { key: 'COMPLAINT_HANDLING', label: 'Complaints' },
+  { key: 'ID_REGISTRATION', label: 'Identity & Registration' },
+  { key: 'CERTIFICATES', label: 'Certificates' },
+  { key: 'PERMITS', label: 'Permits' },
+  { key: 'FEEDBACK_SUPPORT', label: 'Feedback & Support' },
 ];
 
 function getTimeAgo(dateStr) {

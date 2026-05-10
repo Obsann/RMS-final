@@ -6,7 +6,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
-import { registerAPI, getGoogleOAuthURL } from '../utils/api';
+import { registerAPI, getGoogleOAuthURL, sendOtpAPI, verifyOtpAPI } from '../utils/api';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import TranslateWidget from '../components/TranslateWidget';
+import DualCalendarField from '../components/ui/DualCalendarField';
 
 // ── Field validation helpers ────────────────────────────────────────────────
 const validate = {
@@ -28,7 +36,7 @@ const validate = {
     if (!d.email?.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) errs.email = 'Enter a valid email address. E.g., abebe@gmail.com';
     if (!d.phone?.trim()) errs.phone = 'Phone number is required';
-    else if (!/^[0-9+\-() ]{7,20}$/.test(d.phone)) errs.phone = 'Enter a valid phone. E.g., +251 911 123 456';
+    else if (!/^\+?[0-9\s\-()]{9,15}$/.test(d.phone)) errs.phone = 'Enter a valid phone. E.g., +251 911 123 456';
     if (!d.password) errs.password = 'Password is required';
     else if (d.password.length < 6) errs.password = 'Password must be at least 6 characters';
     if (!d.confirmPassword) errs.confirmPassword = 'Please confirm your password';
@@ -60,12 +68,13 @@ const inputCls = (err) =>
 const STEPS = [
   { id: 1, label: 'Personal\nIdentity', short: 'Identity' },
   { id: 2, label: 'Location\n& Residency', short: 'Location' },
-  { id: 3, label: 'Review\n& Submit', short: 'Review' },
+  { id: 3, label: 'Email\nVerification', short: 'Verification' },
+  { id: 4, label: 'Review\n& Submit', short: 'Review' },
 ];
 
 export default function Register() {
   const navigate = useNavigate();
-  const { t, toggleLanguage } = useLanguage();
+  const { lang, t, setLang } = useLanguage();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
@@ -78,19 +87,55 @@ export default function Register() {
     unit: '', subCity: '', email: '', phone: '', password: '', confirmPassword: '',
   });
 
+  const [otp, setOtp] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
   const set = (field) => (e) => {
-    setFormData((p) => ({ ...p, [field]: e.target.value }));
+    const val = e && e.target ? e.target.value : e;
+    setFormData((p) => ({ ...p, [field]: val }));
     if (errors[field]) setErrors((p) => ({ ...p, [field]: '' }));
   };
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100;
 
-  const goNext = () => {
+  const goNext = async () => {
     const errs = step === 1 ? validate.step1(formData) : step === 2 ? validate.step2(formData) : {};
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
-    setStep((s) => s + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    if (step === 2) {
+      setIsSendingOtp(true);
+      try {
+        await sendOtpAPI(formData.email);
+        toast.success(`Verification code sent to ${formData.email}`);
+        setStep((s) => s + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (error) {
+        toast.error(error.message || 'Failed to send verification code');
+      } finally {
+        setIsSendingOtp(false);
+      }
+    } else if (step === 3) {
+      if (!otp || otp.length < 6) {
+        toast.error("Please enter the complete 6-digit code.");
+        return;
+      }
+      setIsVerifyingOtp(true);
+      try {
+        await verifyOtpAPI(formData.email, otp);
+        toast.success('Email verified successfully!');
+        setStep((s) => s + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (error) {
+        toast.error(error.message || 'Invalid or expired verification code');
+      } finally {
+        setIsVerifyingOtp(false);
+      }
+    } else {
+      setStep((s) => s + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const goBack = () => {
@@ -148,18 +193,22 @@ export default function Register() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 flex flex-col">
-      {/* Language toggle */}
-      <div className="flex justify-between items-center px-6 pt-4">
-        <button onClick={() => navigate('/')} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-          <ChevronLeft className="w-4 h-4" /> Back to Home
-        </button>
-        <button onClick={toggleLanguage} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-blue-700 hover:bg-blue-50 text-sm">
-          <Globe className="w-4 h-4" /> {t('switchLanguage')}
-        </button>
+    <div className="min-w-screen min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 flex flex-col relative overflow-hidden">
+      {/* Animated background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
-      <div className="flex-1 flex items-start justify-center py-8 px-4">
+      {/* Header controls */}
+      <div className="relative z-10 flex justify-between items-center px-6 pt-4">
+        <button onClick={() => navigate('/')} className="text-sm text-blue-200 hover:text-white flex items-center gap-1 transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Back to Home
+        </button>
+        <TranslateWidget />
+      </div>
+
+      <div className="relative z-10 flex-1 flex items-start justify-center py-8 px-4">
         <div className="w-full max-w-xl">
           {/* Logo + Title */}
           <div className="text-center mb-6">
@@ -231,9 +280,11 @@ export default function Register() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Date of Birth" error={errors.dateOfBirth} icon={Calendar} required>
-                      <input
-                        type="date" value={formData.dateOfBirth} onChange={set('dateOfBirth')}
-                        className={inputCls(errors.dateOfBirth)}
+                      <DualCalendarField
+                        id="reg-dateOfBirth"
+                        value={formData.dateOfBirth}
+                        onChange={set('dateOfBirth')}
+                        required
                       />
                     </Field>
 
@@ -314,11 +365,51 @@ export default function Register() {
                 </div>
               )}
 
-              {/* ── STEP 3: Review & Submit ───────────────────────────────── */}
+              {/* ── STEP 3: Email Verification ────────────────────────────── */}
               {step === 3 && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900">Step 3 — Review & Submit</h2>
+                    <h2 className="text-lg font-bold text-gray-900">Step 3 — Email Verification</h2>
+                    <p className="text-sm text-gray-500 mt-0.5">We've sent a 6-digit code to <strong className="text-gray-800">{formData.email}</strong></p>
+                  </div>
+                  <div className="flex justify-center py-6">
+                     <input
+                        type="text"
+                        maxLength="6"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        className="text-center text-3xl tracking-[0.5em] font-mono border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 px-4 py-3 w-64"
+                        placeholder="••••••"
+                     />
+                  </div>
+                  <div className="text-center">
+                    <button 
+                       type="button" 
+                       disabled={isSendingOtp}
+                       onClick={async () => {
+                         setIsSendingOtp(true);
+                         try {
+                           await sendOtpAPI(formData.email);
+                           toast.success('Verification code resent!');
+                         } catch (error) {
+                           toast.error(error.message || 'Failed to resend code');
+                         } finally {
+                           setIsSendingOtp(false);
+                         }
+                       }}
+                       className="text-sm text-blue-600 hover:underline font-medium disabled:opacity-50"
+                    >
+                      {isSendingOtp ? 'Sending...' : 'Resend Code'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 4: Review & Submit ───────────────────────────────── */}
+              {step === 4 && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Step 4 — Review & Submit</h2>
                     <p className="text-sm text-gray-500 mt-0.5">Please confirm your information before submitting</p>
                   </div>
 
@@ -357,12 +448,12 @@ export default function Register() {
                   </button>
                 )}
 
-                {step < 3 ? (
+                {step < 4 ? (
                   <button
-                    type="button" onClick={goNext}
-                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 shadow-sm shadow-blue-200 transition-all"
+                    type="button" onClick={goNext} disabled={isSendingOtp || isVerifyingOtp}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm shadow-blue-200 transition-all"
                   >
-                    Continue <ChevronRight className="w-4 h-4" />
+                    {(isSendingOtp || isVerifyingOtp) ? 'Processing...' : 'Continue'} <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button

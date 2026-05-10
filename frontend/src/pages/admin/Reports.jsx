@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { FileText, Download, TrendingUp, Users, Briefcase, MessageSquare, IdCard, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import DualCalendarField from '../../components/ui/DualCalendarField';
 
 const summaryStats = [
   { label: 'Total Residents', value: '487', icon: <Users className="w-6 h-6" />, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -107,13 +108,11 @@ export default function AdminReports() {
             </div>
             <div className="flex-1">
               <label className="block text-gray-700 mb-2">From</label>
-              <input type="date" value={dateRange.from} onChange={e => setDateRange({ ...dateRange, from: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <DualCalendarField id="report-from" value={dateRange.from} onChange={(val) => setDateRange({ ...dateRange, from: val })} />
             </div>
             <div className="flex-1">
               <label className="block text-gray-700 mb-2">To</label>
-              <input type="date" value={dateRange.to} onChange={e => setDateRange({ ...dateRange, to: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <DualCalendarField id="report-to" value={dateRange.to} onChange={(val) => setDateRange({ ...dateRange, to: val })} />
             </div>
             <button
               onClick={() => toast.success(`Report data generated for ${dateRange.from} to ${dateRange.to}`)}

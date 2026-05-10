@@ -24,9 +24,8 @@ const TYPE_CONFIG = {
 // Determine source label from notification metadata
 function getSourceTag(n) {
   if (n.senderRole === 'admin') return { label: 'Admin', color: 'bg-red-50 text-red-700 border border-red-200' };
-  if (n.senderRole === 'special-employee') return { label: 'Supervisor', color: 'bg-purple-50 text-purple-700 border border-purple-200' };
   if (n.type === 'urgent') return { label: 'Admin', color: 'bg-red-50 text-red-700 border border-red-200' };
-  if (n.type === 'task_assigned') return { label: 'Admin / Supervisor', color: 'bg-blue-50 text-blue-700 border border-blue-200' };
+  if (n.type === 'task_assigned') return { label: 'Admin', color: 'bg-blue-50 text-blue-700 border border-blue-200' };
   return null;
 }
 
@@ -115,7 +114,6 @@ export default function EmployeeNotifications() {
     { key: 'all', label: 'All' },
     { key: 'unread', label: 'Unread' },
     { key: 'admin', label: 'From Admin', isSource: true },
-    { key: 'supervisor', label: 'From Supervisor', isSource: true },
     { key: 'task_assigned', label: 'Tasks' },
     { key: 'urgent', label: 'Urgent' },
     { key: 'message', label: 'Messages' },
@@ -125,7 +123,6 @@ export default function EmployeeNotifications() {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'unread') return !(n.isRead ?? n.read ?? false);
     if (activeFilter === 'admin') return n.senderRole === 'admin' || n.type === 'urgent' || n.type === 'task_assigned';
-    if (activeFilter === 'supervisor') return n.senderRole === 'special-employee';
     return n.type === activeFilter;
   };
 
@@ -180,7 +177,6 @@ export default function EmployeeNotifications() {
             if (f.key === 'all') count = notifications.length;
             else if (f.key === 'unread') count = notifications.filter(n => !(n.isRead ?? n.read)).length;
             else if (f.key === 'admin') count = notifications.filter(n => n.senderRole === 'admin' || n.type === 'urgent' || n.type === 'task_assigned').length;
-            else if (f.key === 'supervisor') count = notifications.filter(n => n.senderRole === 'special-employee').length;
             else count = notifications.filter(n => n.type === f.key).length;
 
             return (
@@ -191,7 +187,6 @@ export default function EmployeeNotifications() {
                   }`}
               >
                 {f.key === 'admin' && <Shield className="w-3.5 h-3.5" />}
-                {f.key === 'supervisor' && <User className="w-3.5 h-3.5" />}
                 {f.label}
                 {count > 0 && (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeFilter === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>

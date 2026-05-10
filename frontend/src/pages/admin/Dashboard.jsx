@@ -62,8 +62,8 @@ export default function AdminDashboard() {
     },
     {
       label: 'Employees',
-      value: (overview?.users?.employees ?? 0) + (overview?.users?.specialEmployees ?? 0),
-      sub: `${overview?.users?.employees ?? 0} regular · ${overview?.users?.specialEmployees ?? 0} special`,
+      value: overview?.users?.employees ?? 0,
+      sub: `${overview?.users?.employees ?? 0} total staff`,
       icon: <UserCog className="w-5 h-5" />,
       bg: 'bg-emerald-600',
       path: '/admin/employees'

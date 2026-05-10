@@ -13,6 +13,11 @@ const digitalIdSchema = new mongoose.Schema(
             required: true,
             unique: true
         },
+        idNumber: {
+            type: String,
+            required: true,
+            unique: true
+        },
         status: {
             type: String,
             enum: ['pending', 'verified', 'approved', 'processing', 'issued', 'expired', 'revoked'],
@@ -25,7 +30,32 @@ const digitalIdSchema = new mongoose.Schema(
             ref: 'kebeleUser'
         },
         issueDate: Date,
-        idNumber: String,
+
+        // ── Biographical snapshot at time of issuance (Proclamation 1284/2023) ──
+        firstName: String,
+        fatherName: String,
+        grandfatherName: String,
+        firstNameAmharic: String,
+        fatherNameAmharic: String,
+        grandfatherNameAmharic: String,
+        dateOfBirth: Date,
+        gender: { type: String, enum: ['Male', 'Female'] },
+        nationality: { type: String, default: 'Ethiopian' },
+        placeOfBirth: String,
+        bloodType: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', null], default: null },
+        occupation: String,
+        educationLevel: String,
+        maritalStatus: String,
+        motherName: String,
+        houseNumber: String,
+        phone: String,
+        emergencyContact: {
+            name: String,
+            phone: String
+        },
+        passportPhoto: String,
+        issuingAuthority: { type: String, default: 'Hermata Merkato Kebele' },
+
         // Verification history
         verifications: [{
             verifiedBy: {

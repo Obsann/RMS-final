@@ -1,6 +1,6 @@
 /**
  * Suspicious Activity Reporter
- * Automatically sends a notification to all admins when a special-employee performs
+ * Automatically sends a notification to all admins when an employee performs
  * high-risk actions: adding/removing residents or employees, or when digital IDs
  * remain pending for too long (checked on each login/overview fetch).
  */
@@ -32,8 +32,8 @@ const reportSuspiciousActivity = async (actor, action, detail = '') => {
         const adminIds = await getAdminIds();
         if (!adminIds.length) return;
 
-        const title = `⚠️ Special Employee Action: ${action}`;
-        const message = `Special employee "${actor.username || actor.id}" performed: ${action}${detail ? ` — ${detail}` : ''}. Review audit logs for details.`;
+        const title = `⚠️ Employee Action: ${action}`;
+        const message = `Employee "${actor.username || actor.id}" performed: ${action}${detail ? ` — ${detail}` : ''}. Review audit logs for details.`;
 
         await Promise.all(
             adminIds.map(adminId =>
@@ -54,11 +54,11 @@ const reportSuspiciousActivity = async (actor, action, detail = '') => {
 
 /**
  * Express middleware: wraps POST /users and DELETE /users/:id
- * and fires suspicious activity notifications when performed by special-employee.
+ * and fires suspicious activity notifications when performed by employee.
  */
 const suspiciousActivityMiddleware = (req, res, next) => {
     const actor = req.user;
-    if (!actor || actor.role !== 'special-employee') return next();
+    if (!actor || actor.role !== 'employee') return next();
 
     const method = req.method;
     const isSensitive = (method === 'POST') || (method === 'DELETE');

@@ -38,12 +38,19 @@ export async function api(endpoint, options = {}) {
     const data = await res.json();
 
     if (!res.ok) {
+        if (res.status === 401) {
+            // Token expired or invalid — clear it and force logout to prevent credential mixing
+            localStorage.removeItem('rms_token');
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                window.location.href = '/login?error=session_expired';
+            }
+        }
+
         const err = new Error(data.message || `API error: ${res.status}`);
         err.status = res.status;
         err.data = data;
         throw err;
     }
-
     return data;
 }
 
@@ -65,6 +72,34 @@ export async function registerAPI({ username, email, password, phone, unit }) {
     });
     // Note: registration starts as 'pending' — no token issued until approved
     return data;
+}
+
+export async function sendOtpAPI(email) {
+    return api('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+}
+
+export async function verifyOtpAPI(email, otp) {
+    return api('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp }),
+    });
+}
+
+export async function forgotPasswordAPI(email) {
+    return api('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+}
+
+export async function resetPasswordAPI(email, otp, newPassword) {
+    return api('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp, newPassword }),
+    });
 }
 
 export async function getMeAPI() {

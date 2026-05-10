@@ -27,7 +27,7 @@ const requestSchema = new mongoose.Schema(
         },
         categoryTag: {
             type: String,
-            enum: ['ID_REGISTRATION', 'DOCUMENT_PROCESSING', 'COMPLAINT_HANDLING', null],
+            enum: ['ID_REGISTRATION', 'CERTIFICATES', 'PERMITS', 'FEEDBACK_SUPPORT', null],
             default: null
         },
         formData: {
@@ -94,7 +94,35 @@ const requestSchema = new mongoose.Schema(
             ref: 'Job'
         },
         // Timestamps
-        resolvedAt: Date
+        resolvedAt: Date,
+        // Issued Document (populated when employee approves certificate/permit)
+        issuedDocument: {
+            documentNumber: String,
+            documentType: String,
+            issuedAt: Date,
+            issuedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'kebeleUser'
+            },
+            expiresAt: Date,
+            isLegalized: { type: Boolean, default: true },
+            signatoryName: { type: String, default: 'Obsan Habtamu' },
+            signatoryTitle: { type: String, default: 'Ganda Manager' },
+            registrationNumber: String,
+            formSnapshot: mongoose.Schema.Types.Mixed,
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false
+        },
+        lateRegistration: {
+            type: Boolean,
+            default: false
+        },
+        escalationLevel: {
+            type: Number,
+            default: 0
+        }
     },
     {
         timestamps: true

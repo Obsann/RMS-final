@@ -383,7 +383,6 @@ export default function AdminNotifications() {
                   <option value="all">Everyone (All Approved Users)</option>
                   <option value="residents">Residents Only</option>
                   <option value="employees">Employees Only</option>
-                  <option value="special-employees">Special Employees Only</option>
                 </select>
               </div>
             ) : (

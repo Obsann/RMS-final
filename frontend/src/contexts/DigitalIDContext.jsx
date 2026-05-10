@@ -2,9 +2,8 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 // ── Shared initial request list ──────────────────────────────────────────────
 // status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'rejected'
-// assignedSE       → set by Admin when approving (Special Employee name)
-// assignedEmployee → set by SE when assigning (Employee name)
-// dueDate          → set by SE when assigning
+// assignedEmployee → set by Admin when assigning (Employee name)
+// dueDate          → set when assigning
 // idNumber         → set when completed
 
 const initialRequests = [
@@ -12,37 +11,37 @@ const initialRequests = [
     id: 1, resident: 'Samson Tadesse',      unit: 'A-101', email: 'samson.tadesse@email.com',
     requestDate: '2026-02-27', status: 'pending',
     note: 'First-time ID request (new resident)',
-    assignedSE: '', assignedEmployee: '', dueDate: '', idNumber: '',
+    assignedEmployee: '', dueDate: '', idNumber: '',
   },
   {
     id: 2, resident: 'Olyad Amanuel',    unit: 'B-205', email: 'olyad.amanuel@email.com',
     requestDate: '2026-02-25', status: 'approved',
     note: 'Renewal request',
-    assignedSE: 'Samuel Tolasa', assignedEmployee: '', dueDate: '', idNumber: '',
+    assignedEmployee: '', dueDate: '', idNumber: '',
   },
   {
     id: 3, resident: 'Mulugeta Haile',   unit: 'C-312', email: 'mulugeta.haile@email.com',
     requestDate: '2026-02-24', status: 'pending',
     note: 'Lost ID replacement',
-    assignedSE: '', assignedEmployee: '', dueDate: '', idNumber: '',
+    assignedEmployee: '', dueDate: '', idNumber: '',
   },
   {
     id: 4, resident: 'Fasil Girma',      unit: 'C-105', email: 'fasil.g@email.com',
     requestDate: '2026-02-23', status: 'in_progress',
     note: 'New resident onboarding',
-    assignedSE: 'Temesgen Alemu', assignedEmployee: 'Meron Bekele', dueDate: '2026-03-03', idNumber: '',
+    assignedEmployee: 'Samson Tadesse', dueDate: '2026-03-03', idNumber: '',
   },
   {
     id: 5, resident: 'Ramadan Oumer',    unit: 'B-108', email: 'ramadan.oumer@email.com',
     requestDate: '2026-02-22', status: 'completed',
     note: 'ID issued successfully',
-    assignedSE: 'Mekdes Haile', assignedEmployee: 'Nardos Bekele', dueDate: '2026-02-27', idNumber: 'RES-2026-0108',
+    assignedEmployee: 'Samson Tadesse', dueDate: '2026-02-27', idNumber: 'RES-2026-0108',
   },
   {
     id: 6, resident: 'Hana Bekele',      unit: 'D-201', email: 'hana.bekele@email.com',
     requestDate: '2026-02-21', status: 'rejected',
     note: 'Missing documents',
-    assignedSE: '', assignedEmployee: '', dueDate: '', idNumber: '',
+    assignedEmployee: '', dueDate: '', idNumber: '',
   },
 ];
 
@@ -51,7 +50,7 @@ const initialRequests = [
 /**
  * Maps the shared status to the simplified view a resident sees.
  * 'pending'     → { view: 'pending' }
- * 'approved'    → { view: 'approved' }   (SE not yet assigned employee)
+ * 'approved'    → { view: 'approved' }
  * 'in_progress' → { view: 'in-progress' }
  * 'completed'   → { view: 'ready' }
  * 'rejected'    → { view: 'rejected' }
@@ -91,7 +90,6 @@ export function DigitalIDProvider({ children }) {
       requestDate: '2026-03-01',
       status: 'pending',
       note: data.note || '',
-      assignedSE: '',
       assignedEmployee: '',
       dueDate: '',
       idNumber: '',
