@@ -50,7 +50,7 @@ const userSchema = new mongoose.Schema(
         values: ['pending', 'approved', 'rejected'],
         message: '{VALUE} is not a valid status'
       },
-      default: 'pending'
+      default: 'approved'
     },
     // Profile information
     unit: {

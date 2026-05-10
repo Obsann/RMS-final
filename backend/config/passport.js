@@ -59,11 +59,11 @@ passport.use(
           username: uniqueUsername,
           email: email.toLowerCase(),
           role: 'resident',
-          status: 'pending', // Requires admin approval
+          status: 'approved', // Auto-approved via OAuth
           profilePhoto: profile.photos?.[0]?.url || undefined,
         });
 
-        logger.info(`New Google OAuth user created: ${email} (pending approval)`);
+        logger.info(`New Google OAuth user created: ${email} (auto-approved)`);
         return done(null, user);
       } catch (err) {
         logger.error('Google OAuth strategy error:', err);

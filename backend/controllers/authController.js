@@ -73,11 +73,11 @@ const register = async (req, res) => {
       password: password, // The pre-save hook in authmodel will hash this
       phone,
       unit,
-      status: 'pending'
+      status: 'approved'
     });
 
     res.status(201).json({
-      message: "Registration submitted successfully. Awaiting admin approval",
+      message: "Registration successful. You can now log in.",
       user: {
         id: user._id,
         username: user.username,
@@ -221,14 +221,8 @@ const login = async (req, res) => {
       });
     }
 
-    // Check user status BEFORE password verification (prevents timing attacks)
-    if (user.status === 'pending') {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Your account is awaiting admin approval"
-      });
-    }
-
+    // Remove pending check since we auto-approve now.
+    // If user is rejected, still block them.
     if (user.status === 'rejected') {
       return res.status(403).json({
         error: "Forbidden",
@@ -530,12 +524,8 @@ const googleCallback = async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
     }
 
-    // Check if user is pending approval
-    if (user.status === 'pending') {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=pending_approval`);
-    }
-
-    // Check if user is rejected
+    // Remove pending check since we auto-approve now.
+    // If user is rejected, still block them.
     if (user.status === 'rejected') {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=account_rejected`);
     }
