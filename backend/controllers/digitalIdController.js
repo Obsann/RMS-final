@@ -520,7 +520,7 @@ const verifyByIdNumber = async (req, res) => {
 
         const now = new Date();
         const isExpired = digitalId.expiresAt && digitalId.expiresAt < now;
-        const isRevoked = digitalId.status === 'revoked';
+        const isRevoked = digitalId.status === 'revoked' || (digitalId.user && digitalId.user.isDeleted);
         const isIssued = digitalId.status === 'issued';
 
         const verificationStatus = isRevoked ? 'REVOKED' : isExpired ? 'EXPIRED' : isIssued ? 'VALID' : 'PENDING';

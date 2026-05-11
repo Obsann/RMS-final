@@ -2,6 +2,8 @@ const logger = require('../config/logger');
 const Request = require('../models/Request');
 const Job = require('../models/Job');
 const User = require('../models/authmodel');
+const File = require('../models/File');
+const { cloudinary } = require('../config/cloudinary');
 const { autoAssignJob } = require('./jobController');
 
 // Maps categoryTag → employee jobCategory for auto-assignment
@@ -31,6 +33,14 @@ const createRequest = async (req, res) => {
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ error: 'Not Found', message: 'User not found' });
+        }
+
+        // --- Profile Completeness Validation ---
+        if (!user.unit || !user.address || !user.phone) {
+            return res.status(403).json({ 
+                error: 'Forbidden', 
+                message: 'Your profile is incomplete. Please update your unit, address, and phone number before requesting services.' 
+            });
         }
 
         // --- Oromia Regulation No. 259/2026 Checks ---
@@ -400,6 +410,24 @@ const deleteRequest = async (req, res) => {
         // Also delete linked job if exists
         if (request.job) {
             await Job.findByIdAndDelete(request.job);
+        }
+
+        // Clean up orphaned Cloudinary attachments
+        if (request.attachments && request.attachments.length > 0) {
+            for (const att of request.attachments) {
+                if (att.filename) {
+                    try {
+                        const fileDoc = await File.findOneAndDelete({ filename: att.filename });
+                        if (fileDoc && fileDoc.url && fileDoc.url.includes('cloudinary')) {
+                            // filename might be public_id for cloudinary or we might need to extract it
+                            // cloudinary.uploader.destroy uses public_id. Multer-storage-cloudinary usually sets filename as public_id.
+                            await cloudinary.uploader.destroy(fileDoc.filename);
+                        }
+                    } catch (attErr) {
+                        logger.error(`Failed to delete attachment ${att.filename}:`, attErr);
+                    }
+                }
+            }
         }
 
         res.json({ message: 'Request deleted successfully' });

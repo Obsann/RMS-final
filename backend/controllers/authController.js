@@ -5,9 +5,7 @@ const fs = require("fs");
 const User = require("../models/authmodel.js");
 const sendEmail = require('../utils/sendEmail');
 const { verifyEmail } = require('../utils/emailValidator');
-
-// In-memory OTP store
-const otpStore = new Map();
+const Otp = require('../models/Otp');
 
 /**
  * Register a new user
@@ -23,7 +21,6 @@ const register = async (req, res) => {
 
     // Validate required fields
     if (!username || !email || !password) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: "Bad Request",
         message: "Username, email, and password are required"
@@ -65,6 +62,15 @@ const register = async (req, res) => {
       });
     }
 
+    // CRITICAL FIX: Verify that OTP was completed
+    const otpRecord = await Otp.findOne({ email: email.toLowerCase(), verified: true });
+    if (!otpRecord) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Email verification is required. Please verify your OTP first."
+      });
+    }
+
     // All new registrations start as pending residents
     const user = await User.create({
       role,
@@ -86,9 +92,12 @@ const register = async (req, res) => {
         status: user.status
       }
     });
+
+    // Cleanup the used OTP
+    await Otp.deleteOne({ _id: otpRecord._id });
+
   } catch (err) {
     logger.error("Register error:", err);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
     // Handle mongoose validation errors
     if (err.name === 'ValidationError') {
@@ -127,9 +136,13 @@ const sendOtp = async (req, res) => {
 
     // 3. Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    otpStore.set(email.toLowerCase(), { otp, expiresAt });
+    
+    // Save or update in DB
+    await Otp.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, verified: false, createdAt: new Date() },
+      { upsert: true, new: true }
+    );
 
     // 4. Send Email
     const html = `
@@ -168,27 +181,18 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: "Bad Request", message: "Email and OTP are required" });
     }
 
-    const record = otpStore.get(email.toLowerCase());
+    const record = await Otp.findOne({ email: email.toLowerCase() });
     if (!record) {
       return res.status(400).json({ error: "Bad Request", message: "No OTP found or it has expired. Please request a new one." });
-    }
-
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(email.toLowerCase());
-      return res.status(400).json({ error: "Bad Request", message: "OTP has expired. Please request a new one." });
     }
 
     if (record.otp !== otp.toString()) {
       return res.status(400).json({ error: "Bad Request", message: "Invalid OTP" });
     }
 
-    // OTP is valid. Delete from store so it can't be reused.
-    // However, wait until register is fully completed before deleting, 
-    // or trust the frontend that after verifyOtp = success, it immediately calls register.
-    // For now, we delete it, meaning verifyOtp just confirms it's correct.
-    // A more robust approach might be to set verified: true in the store and check it during register, 
-    // but the task just requested OTP verification step. Let's mark it verified.
-    otpStore.set(email.toLowerCase(), { ...record, verified: true });
+    // OTP is valid. Mark as verified.
+    record.verified = true;
+    await record.save();
 
     res.status(200).json({ message: "OTP verified successfully" });
   } catch (err) {
