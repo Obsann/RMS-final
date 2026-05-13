@@ -112,22 +112,27 @@ const sigStyle = {
 };
 
 // ── Photo Component (shows actual image or placeholder) ──────────────────────
-const CertPhoto = ({ src, label }) => (
+const CertPhoto = ({ src, label }) => {
+  // Resolve image source: Cloudinary URLs pass through, local filenames get /api/uploads/ prefix
+  const imgSrc = src
+    ? (src.startsWith('http') ? src : `/api/uploads/${src.replace(/^.*?uploads[\\/]/, '')}`)
+    : null;
+  return (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
     <div style={{
-      width: '110px', height: '140px', border: src ? '2px solid #0d6e3e' : '2px dashed #aaa', borderRadius: '4px',
+      width: '110px', height: '140px', border: imgSrc ? '2px solid #0d6e3e' : '2px dashed #aaa', borderRadius: '4px',
       display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9',
       overflow: 'hidden',
     }}>
-      {src ? (
-        <img src={`/uploads/${src}`} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+      {imgSrc ? (
+        <img src={imgSrc} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
       ) : (
         <User size={36} color="#ccc" />
       )}
     </div>
     <span style={{ fontSize: '10px', color: '#555', fontWeight: 600, textTransform: 'uppercase' }}>{label}</span>
   </div>
-);
+)};
 
 // ── Ethiopian Flag Component ─────────────────────────────────────────────────
 const EthiopianFlag = () => (

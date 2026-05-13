@@ -2,15 +2,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import IssuedDocument from '../../components/services/IssuedDocument';
-import { getRequests } from '../../utils/api';
+import DigitalIDCard from '../../components/ui/DigitalIDCard';
+import { getRequests, getMyDigitalId, getMeAPI } from '../../utils/api';
 import { toast } from 'sonner';
 import {
   Award, Shield, Home, ChevronRight, Loader2,
-  FileText, RefreshCw, Search, Filter, Download,
+  FileText, RefreshCw, Search, IdCard
 } from 'lucide-react';
 
 const TABS = [
   { key: 'all', label: 'All Documents', icon: FileText },
+  { key: 'identity', label: 'Identity', icon: IdCard },
   { key: 'certificates', label: 'Certificates', icon: Award },
   { key: 'permits', label: 'Permits', icon: Shield },
 ];
@@ -18,6 +20,8 @@ const TABS = [
 export default function MyDocuments() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
+  const [digitalIdData, setDigitalIdData] = useState(null);
+  const [residentData, setResidentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
@@ -28,10 +32,25 @@ export default function MyDocuments() {
     try {
       if (showToast) setRefreshing(true);
       else setLoading(true);
-      const data = await getRequests('status=completed');
+      const [data, idData, meData] = await Promise.all([
+        getRequests('status=completed'),
+        getMyDigitalId().catch(() => null),
+        getMeAPI().catch(() => null)
+      ]);
       // Only keep requests with issued documents
       const issued = (data.requests || []).filter(r => r.issuedDocument?.documentNumber);
       setRequests(issued);
+      
+      if (idData && (idData.status === 'issued' || idData.status === 'approved')) {
+        setDigitalIdData(idData);
+      } else {
+        setDigitalIdData(null);
+      }
+      
+      if (meData) {
+        setResidentData(meData.user || meData);
+      }
+
       if (showToast) toast.success('Documents refreshed');
     } catch {
       toast.error('Failed to load documents');
@@ -44,12 +63,26 @@ export default function MyDocuments() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const filtered = useMemo(() => {
-    return requests.filter(r => {
-      const doc = r.issuedDocument;
+    let result = [...requests];
+    
+    // Add Digital ID to the list as a synthetic item for filtering
+    if (digitalIdData) {
+      result.unshift({
+        _id: 'digital-id',
+        type: 'identity',
+        subject: 'Digital ID Card',
+        isDigitalId: true,
+        issuedDocument: { documentNumber: digitalIdData.idNumber, documentType: 'Digital ID' }
+      });
+    }
+
+    return result.filter(r => {
+      const doc = r.issuedDocument || {};
       const matchesTab =
         activeTab === 'all' ||
         (activeTab === 'certificates' && r.type === 'certificate') ||
-        (activeTab === 'permits' && r.type === 'permit');
+        (activeTab === 'permits' && r.type === 'permit') ||
+        (activeTab === 'identity' && r.type === 'identity');
       const matchesSearch =
         !searchTerm ||
         (doc.documentNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,13 +90,14 @@ export default function MyDocuments() {
         (r.subject || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesTab && matchesSearch;
     });
-  }, [requests, activeTab, searchTerm]);
+  }, [requests, digitalIdData, activeTab, searchTerm]);
 
   const stats = useMemo(() => ({
-    total: requests.length,
+    total: requests.length + (digitalIdData ? 1 : 0),
     certificates: requests.filter(r => r.type === 'certificate').length,
     permits: requests.filter(r => r.type === 'permit').length,
-  }), [requests]);
+    identity: digitalIdData ? 1 : 0,
+  }), [requests, digitalIdData]);
 
   return (
     <DashboardLayout>
@@ -93,9 +127,10 @@ export default function MyDocuments() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Documents', value: stats.total, icon: FileText, color: 'text-gray-600', bg: 'bg-gray-50' },
+            { label: 'Digital ID', value: stats.identity, icon: IdCard, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Certificates', value: stats.certificates, icon: Award, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Permits', value: stats.permits, icon: Shield, color: 'text-violet-600', bg: 'bg-violet-50' },
           ].map((stat) => (
@@ -117,7 +152,7 @@ export default function MyDocuments() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row gap-3">
             {/* Tabs */}
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -154,18 +189,32 @@ export default function MyDocuments() {
                 <p className="text-gray-500">Loading your documents...</p>
               </div>
             ) : filtered.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {filtered.map((req) => {
-                  const doc = req.issuedDocument;
                   const isExpanded = expandedId === req._id;
-                  const isCert = req.type === 'certificate';
+                  
+                  if (req.isDigitalId) {
+                    return (
+                      <div key={req._id} className="border border-blue-200 bg-blue-50/50 rounded-xl overflow-hidden p-6">
+                         <div className="mb-4">
+                           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                             <IdCard className="w-5 h-5 text-blue-600" />
+                             Kebele Digital ID
+                           </h3>
+                           <p className="text-sm text-gray-600">Your official government identification card.</p>
+                         </div>
+                         <DigitalIDCard digitalId={digitalIdData} resident={residentData} />
+                      </div>
+                    );
+                  }
 
+                  const doc = req.issuedDocument;
                   return (
                     <div key={req._id} className="border border-gray-200 rounded-xl overflow-hidden">
                       {/* Compact header */}
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : req._id)}
-                        className="w-full text-left"
+                        className="w-full text-left focus:outline-none"
                       >
                         <IssuedDocument issuedDocument={doc} compact />
                       </button>

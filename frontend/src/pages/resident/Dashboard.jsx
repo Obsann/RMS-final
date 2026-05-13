@@ -40,7 +40,7 @@ export default function ResidentDashboard() {
   }, []);
 
   const quickActions = [
-    { label: 'Report an Issue', icon: <AlertTriangle className="w-6 h-6" />, path: '/resident/requests', color: 'bg-orange-500' },
+    { label: 'Report an Issue', icon: <AlertTriangle className="w-6 h-6" />, path: '/resident/services?category=feedback', color: 'bg-orange-500' },
     { label: 'View Digital ID', icon: <IdCard className="w-6 h-6" />, path: '/resident/services?category=identity', color: 'bg-purple-500' },
     { label: 'My Documents', icon: <Award className="w-6 h-6" />, path: '/resident/documents', color: 'bg-emerald-500' },
     { label: 'Manage Profile', icon: <User className="w-6 h-6" />, path: '/resident/profile', color: 'bg-green-500' },

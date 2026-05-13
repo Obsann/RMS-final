@@ -353,8 +353,19 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
                           // Upload immediately
                           try {
                             const uploaded = await uploadFile(file);
-                            if (uploaded?.filename) {
-                              setAttachments(prev => [...prev.filter(a => a.originalName !== file.name), { filename: uploaded.filename, originalName: file.name }]);
+                            const uploadedFile = uploaded?.file;
+                            if (uploadedFile?.filename) {
+                              setAttachments(prev => [...prev.filter(a => a.originalName !== file.name), { filename: uploadedFile.filename, originalName: file.name, url: uploadedFile.url }]);
+                              // Auto-sync passport photo as profile picture for ID applications
+                              if (field.name === 'passportPhoto' && serviceId === 'new_id_application') {
+                                try {
+                                  const { getMeAPI, updateUser } = await import('../../utils/api');
+                                  const meRes = await getMeAPI();
+                                  const me = meRes.user || meRes;
+                                  const photoPath = uploadedFile.url || `/api/uploads/${uploadedFile.filename}`;
+                                  await updateUser(me.id || me._id, { profilePhoto: photoPath });
+                                } catch (_) { /* silent — profile sync is best-effort */ }
+                              }
                             }
                           } catch (err) {
                             toast.error('Failed to upload photo.');

@@ -7,7 +7,7 @@ import {
   Calendar, Users, AlertCircle, IdCard
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getMeAPI, updateUser, api, getMyDigitalId } from '../../utils/api';
+import { getMeAPI, updateUser, api, getMyDigitalId, getFileUrl } from '../../utils/api';
 import DualCalendarField from '../../components/ui/DualCalendarField';
 
 // Mandatory fields that must be filled to request a Digital ID
@@ -109,7 +109,13 @@ export default function ResidentProfile() {
 
   const [editFormData, setEditFormData] = useState({});
   const [editErrors, setEditErrors] = useState({});
-  const [dependentData, setDependentData] = useState({ name: '', relationship: '', age: '' });
+  const [dependentData, setDependentData] = useState({
+    name: '', relationship: '', age: '', scenario: '',
+    sex: '', dateOfBirth: '', birthCertificateId: '',
+    marriageCertificateId: '', hasReleaseLetter: false,
+    previousGandaId: '', witnesses: [{ name: '', residentId: '' }, { name: '', residentId: '' }, { name: '', residentId: '' }],
+    contractReference: '', houseHeadConsent: false,
+  });
   const [submitting, setSubmitting] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const photoInputRef = useRef(null);
@@ -195,6 +201,8 @@ export default function ResidentProfile() {
       toast.success('Profile updated successfully!');
       setShowEditModal(false);
       fetchProfile();
+      // Notify DashboardLayout navbar to refresh
+      window.dispatchEvent(new Event('profile-updated'));
     } catch (error) {
       toast.error(error.message || 'Failed to update profile');
     } finally {
@@ -235,6 +243,8 @@ export default function ResidentProfile() {
       setUser(prev => ({ ...prev, profilePhoto: photoPath }));
       toast.success('Profile picture updated!');
       fetchProfile();
+      // Notify DashboardLayout navbar to refresh photo
+      window.dispatchEvent(new Event('profile-updated'));
     } catch (err) {
       toast.error(err.message || 'Failed to update profile picture');
     } finally {
@@ -244,18 +254,57 @@ export default function ResidentProfile() {
   };
 
   const handleAddDependent = async () => {
-    if (!dependentData.name || !dependentData.relationship) {
-      toast.error('Name and relationship are required'); return;
+    if (!dependentData.name || !dependentData.relationship || !dependentData.scenario) {
+      toast.error('Name, scenario, and relationship are required'); return;
+    }
+    // Scenario-based validation per Ethiopian Proclamation 1370/2025
+    const sc = dependentData.scenario;
+    if (sc === 'newborn_child' && !dependentData.birthCertificateId) {
+      toast.error('Birth Certificate ID is required for newborn registration'); return;
+    }
+    if (sc === 'new_spouse' && !dependentData.marriageCertificateId) {
+      toast.error('Marriage Certificate is required for spouse registration'); return;
+    }
+    if (sc === 'new_spouse' && !dependentData.hasReleaseLetter) {
+      toast.error('A Release Letter from the spouse\'s previous Ganda is required'); return;
+    }
+    if (sc === 'relocating_adult' && !dependentData.hasReleaseLetter) {
+      toast.error('A Release Letter (Waiver) from the previous Ganda/Kebele is required'); return;
+    }
+    if (sc === 'relative_dependent') {
+      const validWitnesses = dependentData.witnesses.filter(w => w.name && w.residentId);
+      if (validWitnesses.length < 3) {
+        toast.error('3 registered witnesses with Resident IDs are required for relative/dependent registration'); return;
+      }
+    }
+    if (sc === 'domestic_worker' && !dependentData.contractReference) {
+      toast.error('Employment contract reference is required for domestic worker registration'); return;
+    }
+    if (!dependentData.houseHeadConsent) {
+      toast.error('House Head consent is required to add any member'); return;
     }
     setSubmitting(true);
     try {
+      // Send the full dependent data including legal fields
+      const payload = {
+        ...dependentData,
+        witnesses: dependentData.scenario === 'relative_dependent'
+          ? dependentData.witnesses.filter(w => w.name && w.residentId)
+          : undefined,
+      };
       await api(`/users/${user.id || user._id}/dependents`, {
         method: 'POST',
-        body: JSON.stringify(dependentData)
+        body: JSON.stringify(payload)
       });
       toast.success('Household member added!');
       setShowAddDependentModal(false);
-      setDependentData({ name: '', relationship: '', age: '' });
+      setDependentData({
+        name: '', relationship: '', age: '', scenario: '',
+        sex: '', dateOfBirth: '', birthCertificateId: '',
+        marriageCertificateId: '', hasReleaseLetter: false,
+        previousGandaId: '', witnesses: [{ name: '', residentId: '' }, { name: '', residentId: '' }, { name: '', residentId: '' }],
+        contractReference: '', houseHeadConsent: false,
+      });
       fetchProfile();
     } catch (error) {
       toast.error(error.message || 'Failed to add household member');
@@ -311,7 +360,7 @@ export default function ResidentProfile() {
                     {photoUploading ? (
                       <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                     ) : user.profilePhoto ? (
-                      <img src={user.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                      <img src={getFileUrl(user.profilePhoto)} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-3xl font-medium text-blue-600">
                         {user.username?.charAt(0).toUpperCase() || 'U'}
@@ -578,14 +627,40 @@ export default function ResidentProfile() {
         </div>
       </Modal>
 
-      {/* ── Add Household Member Modal ── */}
-      <Modal isOpen={showAddDependentModal} onClose={() => setShowAddDependentModal(false)} title="Add Household Member" size="md">
-        <div className="space-y-4">
+      {/* ── Add Household Member Modal (Ethiopian Proclamation 1370/2025) ── */}
+      <Modal isOpen={showAddDependentModal} onClose={() => setShowAddDependentModal(false)} title="Add Household Member" size="lg">
+        <div className="space-y-4 overflow-y-auto max-h-[75vh] px-0.5">
+          {/* Legal notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 flex gap-2 items-start">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+            <span>Per <strong>Proclamation 1370/2025</strong>, adding a member requires specific evidence based on the registration scenario. Please select the correct scenario below.</span>
+          </div>
+
+          {/* Scenario Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Registration Scenario *</label>
+            <select value={dependentData.scenario} onChange={e => {
+              const sc = e.target.value;
+              const relMap = { newborn_child: 'Child', new_spouse: 'Spouse', relocating_adult: '', relative_dependent: 'Relative', domestic_worker: 'Domestic Worker', tenant: 'Tenant' };
+              setDependentData({ ...dependentData, scenario: sc, relationship: relMap[sc] || dependentData.relationship });
+            }} className={inputCls(false)}>
+              <option value="">Select scenario...</option>
+              <option value="newborn_child">👶 Newborn Child (Birth Certificate)</option>
+              <option value="new_spouse">💍 New Spouse (Marriage Certificate)</option>
+              <option value="relocating_adult">📋 Relocating Adult (Release Letter)</option>
+              <option value="relative_dependent">👨‍👩‍👧 Relative / Dependent (3 Witnesses)</option>
+              <option value="domestic_worker">🏠 Domestic Worker (Contract)</option>
+              <option value="tenant">🔑 Tenant</option>
+            </select>
+          </div>
+
+          {/* Common fields */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name *</label>
             <input type="text" value={dependentData.name} onChange={e => setDependentData({ ...dependentData, name: e.target.value })}
               className={inputCls(false)} placeholder="E.g., Abebe Kebede" />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Relationship *</label>
@@ -595,20 +670,169 @@ export default function ResidentProfile() {
                 <option value="Spouse">Spouse</option>
                 <option value="Child">Child</option>
                 <option value="Parent">Parent</option>
-                <option value="Sibling">Sibling</option>
-                <option value="Other">Other</option>
+                <option value="Relative">Relative</option>
+                <option value="Domestic Worker">Domestic Worker</option>
+                <option value="Tenant">Tenant</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Age (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Sex</label>
+              <select value={dependentData.sex} onChange={e => setDependentData({ ...dependentData, sex: e.target.value })}
+                className={inputCls(false)}>
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
               <input type="number" value={dependentData.age} onChange={e => setDependentData({ ...dependentData, age: e.target.value })}
                 className={inputCls(false)} placeholder="Years" min="0" max="120" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of Birth</label>
+              <input type="date" value={dependentData.dateOfBirth} onChange={e => setDependentData({ ...dependentData, dateOfBirth: e.target.value })}
+                className={inputCls(false)} />
+            </div>
           </div>
+
+          {/* ── Scenario-specific fields ── */}
+
+          {/* Newborn Child: Birth Certificate */}
+          {dependentData.scenario === 'newborn_child' && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">📋 Newborn Registration — must be within 90 days</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Birth Certificate ID *</label>
+                <input type="text" value={dependentData.birthCertificateId} onChange={e => setDependentData({ ...dependentData, birthCertificateId: e.target.value })}
+                  className={inputCls(false)} placeholder="Birth certificate number" />
+              </div>
+            </div>
+          )}
+
+          {/* New Spouse: Marriage Certificate + Release Letter */}
+          {dependentData.scenario === 'new_spouse' && (
+            <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-pink-700 uppercase tracking-wide">💍 Spouse Registration — must be within 30 days of ceremony</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Marriage Certificate ID *</label>
+                <input type="text" value={dependentData.marriageCertificateId} onChange={e => setDependentData({ ...dependentData, marriageCertificateId: e.target.value })}
+                  className={inputCls(false)} placeholder="Marriage certificate number" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Previous Ganda/Kebele ID</label>
+                <input type="text" value={dependentData.previousGandaId} onChange={e => setDependentData({ ...dependentData, previousGandaId: e.target.value })}
+                  className={inputCls(false)} placeholder="Spouse's previous Ganda ID" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={dependentData.hasReleaseLetter} onChange={e => setDependentData({ ...dependentData, hasReleaseLetter: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Release Letter from previous Ganda obtained *</span>
+              </label>
+            </div>
+          )}
+
+          {/* Relocating Adult: Release Letter */}
+          {dependentData.scenario === 'relocating_adult' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">📋 Relocating Adult — Release Letter Required</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Previous Ganda/Kebele ID *</label>
+                <input type="text" value={dependentData.previousGandaId} onChange={e => setDependentData({ ...dependentData, previousGandaId: e.target.value })}
+                  className={inputCls(false)} placeholder="Previous residential Ganda/Kebele ID" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={dependentData.hasReleaseLetter} onChange={e => setDependentData({ ...dependentData, hasReleaseLetter: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Release Letter (Waiver) from previous Ganda obtained *</span>
+              </label>
+            </div>
+          )}
+
+          {/* Relative / Dependent: 3 Witnesses */}
+          {dependentData.scenario === 'relative_dependent' && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">👥 3 Registered Witnesses Required</p>
+              <p className="text-xs text-indigo-600">Witnesses must be residents registered in the Fayda System or local registry.</p>
+              {dependentData.witnesses.map((w, idx) => (
+                <div key={idx} className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Witness {idx + 1} — Full Name *</label>
+                    <input type="text" value={w.name} onChange={e => {
+                      const newW = [...dependentData.witnesses];
+                      newW[idx] = { ...newW[idx], name: e.target.value };
+                      setDependentData({ ...dependentData, witnesses: newW });
+                    }} className={inputCls(false)} placeholder="Full name" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Witness {idx + 1} — Resident ID *</label>
+                    <input type="text" value={w.residentId} onChange={e => {
+                      const newW = [...dependentData.witnesses];
+                      newW[idx] = { ...newW[idx], residentId: e.target.value };
+                      setDependentData({ ...dependentData, witnesses: newW });
+                    }} className={inputCls(false)} placeholder="Resident/Fayda ID" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Domestic Worker: Contract */}
+          {dependentData.scenario === 'domestic_worker' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">🏠 Domestic Worker — Contract Required</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Employment Contract Reference *</label>
+                <input type="text" value={dependentData.contractReference} onChange={e => setDependentData({ ...dependentData, contractReference: e.target.value })}
+                  className={inputCls(false)} placeholder="Contract number or reference" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Previous Ganda/Kebele ID</label>
+                <input type="text" value={dependentData.previousGandaId} onChange={e => setDependentData({ ...dependentData, previousGandaId: e.target.value })}
+                  className={inputCls(false)} placeholder="Worker's previous Ganda ID" />
+              </div>
+            </div>
+          )}
+
+          {/* Tenant */}
+          {dependentData.scenario === 'tenant' && (
+            <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-cyan-700 uppercase tracking-wide">🔑 Tenant Registration</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Previous Ganda/Kebele ID</label>
+                <input type="text" value={dependentData.previousGandaId} onChange={e => setDependentData({ ...dependentData, previousGandaId: e.target.value })}
+                  className={inputCls(false)} placeholder="Previous residential Ganda/Kebele ID" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={dependentData.hasReleaseLetter} onChange={e => setDependentData({ ...dependentData, hasReleaseLetter: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Release Letter from previous Ganda obtained</span>
+              </label>
+            </div>
+          )}
+
+          {/* House Head Consent (required for all) */}
+          {dependentData.scenario && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={dependentData.houseHeadConsent}
+                  onChange={e => setDependentData({ ...dependentData, houseHeadConsent: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <div>
+                  <span className="text-sm font-medium text-gray-800">House Head Consent (Abba Warraa) *</span>
+                  <p className="text-xs text-gray-500 mt-0.5">I, as the registered House Head, give explicit written consent for this member to be added to my household registry.</p>
+                </div>
+              </label>
+            </div>
+          )}
+
           <div className="pt-3 flex gap-3">
             <button disabled={submitting} onClick={handleAddDependent}
               className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium text-sm">
-              {submitting ? 'Adding...' : 'Add Member'}
+              {submitting ? 'Adding...' : 'Register Member'}
             </button>
             <button onClick={() => setShowAddDependentModal(false)}
               className="flex-1 bg-white border border-gray-300 px-4 py-2.5 rounded-xl hover:bg-gray-50 text-sm font-medium">

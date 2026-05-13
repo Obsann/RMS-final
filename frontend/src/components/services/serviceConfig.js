@@ -48,7 +48,6 @@ export const SERVICE_GROUPS = [
           { name: 'emergencyContactPhone', label: 'Emergency Contact Phone / የአደጋ ጊዜ ተጠሪ ስልክ', type: 'phone', required: true, placeholder: '+251...' },
           // ── Passport photo (optional — updates profile photo if uploaded) ──
           { name: 'passportPhoto', label: 'Passport-Size Photo (Optional) / የፓስፖርት ፎቶ', type: 'file', required: false, accept: 'image/*', helperText: 'White background, front-facing. If uploaded, this will also update your profile photo.' },
-          { name: 'evidenceDocument', label: 'Supporting Evidence / ማስረጃ ሰነድ', type: 'file', required: true, accept: 'image/*,.pdf', helperText: 'Upload any valid supporting evidence (e.g. Woreda clearance, birth certificate).' },
         ],
       },
       {

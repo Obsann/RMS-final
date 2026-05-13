@@ -165,8 +165,10 @@ export default function StepperForm({ service, onBack, onSubmitRequest }) {
                     setPhotoPreviews(prev => ({ ...prev, [field.name]: URL.createObjectURL(file) }));
                     try {
                       const uploaded = await uploadFile(file);
-                      if (uploaded?.filename) {
-                        onChange(uploaded.filename);
+                      const uploadedFile = uploaded?.file;
+                      if (uploadedFile?.filename) {
+                        // Store the URL if available (Cloudinary), otherwise just the filename
+                        onChange(uploadedFile.url || uploadedFile.filename);
                       }
                     } catch (err) {
                       toast.error('Failed to upload photo.');

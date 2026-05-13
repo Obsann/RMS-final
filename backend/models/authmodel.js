@@ -102,11 +102,39 @@ const userSchema = new mongoose.Schema(
         default: 'pending'
       }
     }],
-    // Dependents/Family members
+    // Dependents/Family members (Proclamation 1370/2025 compliant)
     dependents: [{
       name: { type: String, required: true },
-      relationship: { type: String, required: true },
+      relationship: {
+        type: String,
+        required: true,
+        enum: ['Spouse', 'Child', 'Parent', 'Relative', 'Domestic Worker', 'Tenant']
+      },
+      scenario: {
+        type: String,
+        enum: ['newborn_child', 'new_spouse', 'relocating_adult', 'relative_dependent', 'domestic_worker', 'tenant'],
+      },
       age: Number,
+      sex: { type: String, enum: ['Male', 'Female'] },
+      dateOfBirth: Date,
+      // Newborn registration
+      birthCertificateId: { type: String, trim: true },
+      // Spouse registration
+      marriageCertificateId: { type: String, trim: true },
+      // Release letter / waiver from previous Ganda
+      hasReleaseLetter: { type: Boolean, default: false },
+      previousGandaId: { type: String, trim: true },
+      // Witness verification (for relative/dependent)
+      witnesses: [{
+        name: { type: String },
+        residentId: { type: String }
+      }],
+      // Domestic worker
+      contractReference: { type: String, trim: true },
+      // Entry tracking
+      entryDate: { type: Date, default: Date.now },
+      // House head consent
+      houseHeadConsent: { type: Boolean, default: false },
       addedAt: { type: Date, default: Date.now }
     }],
     // Emergency contact

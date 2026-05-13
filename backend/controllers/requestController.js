@@ -123,7 +123,10 @@ const createRequest = async (req, res) => {
                 a.originalName && a.originalName.match(/\.(jpg|jpeg|png|webp)$/i)
             );
             if (photoAttachment && photoAttachment.filename) {
-                user.profilePhoto = photoAttachment.filename;
+                // Look up the File document to get the proper Cloudinary URL
+                const fileDoc = await File.findOne({ filename: photoAttachment.filename });
+                const photoPath = fileDoc?.url || `/api/uploads/${photoAttachment.filename}`;
+                user.profilePhoto = photoPath;
                 await user.save();
             }
         }

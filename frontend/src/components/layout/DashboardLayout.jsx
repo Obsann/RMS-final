@@ -44,6 +44,16 @@ export default function DashboardLayout({ children }) {
 
   const [employeeJobCategory, setEmployeeJobCategory] = useState('');
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [displayName, setDisplayName] = useState('');
+
+  // Resolve photo URL: handles Cloudinary URLs, /api/uploads/ paths, and bare filenames
+  const resolvePhotoUrl = (photo) => {
+    if (!photo) return null;
+    if (photo.startsWith('http')) return photo;
+    if (photo.startsWith('/api/uploads/')) return photo;
+    if (photo.startsWith('/uploads/')) return photo;
+    return `/api/uploads/${photo.replace(/^.*?uploads[\\/]/, '')}`;
+  };
 
   // Fetch real unread notification count + profile photo from API
   useEffect(() => {
@@ -66,14 +76,23 @@ export default function DashboardLayout({ children }) {
           const data = await meRes.json();
           const me = data.user || data;
           const photo = me?.profilePhoto;
-          if (photo) setProfilePhoto(`/uploads/${photo.replace(/^.*?uploads\//, '')}`);
+          setProfilePhoto(resolvePhotoUrl(photo));
+          if (me?.username) setDisplayName(me.username);
           if (me?.jobCategory) setEmployeeJobCategory(me.jobCategory);
         }
       } catch (e) { /* silent */ }
     };
     load();
     const interval = setInterval(load, 90000);
-    return () => clearInterval(interval);
+
+    // Listen for profile updates from the Profile page to refresh immediately
+    const onProfileUpdated = () => load();
+    window.addEventListener('profile-updated', onProfileUpdated);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('profile-updated', onProfileUpdated);
+    };
   }, [user]);
 
   const adminMenuItems = [
@@ -183,13 +202,13 @@ export default function DashboardLayout({ children }) {
                   className="flex items-center gap-3 pl-3 border-l border-gray-200 hover:bg-gray-50 rounded-lg pr-2 py-1 transition-colors"
                 >
                   <div className="hidden sm:block text-right">
-                    <p className="text-gray-900 text-sm font-medium">{(user?.username || user?.name || '').replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                    <p className="text-gray-900 text-sm font-medium">{((displayName || user?.username || user?.name || '')).replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
                     <p className="text-gray-500 text-xs capitalize">{user?.role?.replace('-', ' ')}</p>
                   </div>
                   <div className="w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden bg-blue-600 flex items-center justify-center flex-shrink-0">
                     {profilePhoto
                       ? <img src={profilePhoto} alt="avatar" className="w-full h-full object-cover" />
-                      : <span className="text-white font-medium text-sm">{((user?.username || user?.name || '').charAt(0) || 'U').toUpperCase()}</span>
+                      : <span className="text-white font-medium text-sm">{((displayName || user?.username || user?.name || '').charAt(0) || 'U').toUpperCase()}</span>
                     }
                   </div>
                 </button>

@@ -297,12 +297,18 @@ const deleteUser = async (req, res) => {
 };
 
 /**
- * Add dependent to user
+ * Add dependent to user (Ethiopian Proclamation 1370/2025 compliant)
  */
 const addDependent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, relationship, age } = req.body;
+    const {
+      name, relationship, age, scenario,
+      sex, dateOfBirth, birthCertificateId,
+      marriageCertificateId, hasReleaseLetter,
+      previousGandaId, witnesses,
+      contractReference, houseHeadConsent
+    } = req.body;
 
     // Users can only add dependents to their own profile
     if (req.user.role !== 'admin' && req.user.id.toString() !== id.toString()) {
@@ -319,12 +325,98 @@ const addDependent = async (req, res) => {
       });
     }
 
+    // Validate relationship enum
+    const validRelationships = ['Spouse', 'Child', 'Parent', 'Relative', 'Domestic Worker', 'Tenant'];
+    if (!validRelationships.includes(relationship)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `Relationship must be one of: ${validRelationships.join(', ')}`
+      });
+    }
+
+    // House head consent is mandatory for all additions
+    if (!houseHeadConsent) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "House Head consent (Abba Warraa) is required to register any household member"
+      });
+    }
+
+    // Scenario-based validation per Proclamation 1370/2025
+    if (scenario === 'newborn_child') {
+      if (!birthCertificateId) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Birth Certificate ID is required for newborn registration"
+        });
+      }
+    }
+
+    if (scenario === 'new_spouse') {
+      if (!marriageCertificateId) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Marriage Certificate is required for spouse registration"
+        });
+      }
+      if (!hasReleaseLetter) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "A Release Letter from the spouse's previous Ganda/Kebele is required"
+        });
+      }
+    }
+
+    if (scenario === 'relocating_adult') {
+      if (!hasReleaseLetter) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "A Release Letter (Waiver) from the previous Ganda/Kebele is required for relocating adults"
+        });
+      }
+    }
+
+    if (scenario === 'relative_dependent') {
+      if (!Array.isArray(witnesses) || witnesses.filter(w => w.name && w.residentId).length < 3) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "3 registered witnesses with valid Resident IDs are required for relative/dependent registration"
+        });
+      }
+    }
+
+    if (scenario === 'domestic_worker') {
+      if (!contractReference) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Employment contract reference is required for domestic worker registration"
+        });
+      }
+    }
+
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ error: "Not Found", message: "User not found" });
     }
 
-    user.dependents.push({ name, relationship, age });
+    const dependentData = {
+      name,
+      relationship,
+      scenario,
+      age,
+      sex,
+      dateOfBirth,
+      birthCertificateId,
+      marriageCertificateId,
+      hasReleaseLetter: hasReleaseLetter || false,
+      previousGandaId,
+      witnesses: scenario === 'relative_dependent' ? witnesses : undefined,
+      contractReference,
+      houseHeadConsent,
+      entryDate: new Date(),
+    };
+
+    user.dependents.push(dependentData);
     await user.save();
 
     res.status(201).json({
