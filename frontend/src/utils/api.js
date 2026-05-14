@@ -46,7 +46,30 @@ export async function api(endpoint, options = {}) {
             }
         }
 
-        const err = new Error(data.message || `API error: ${res.status}`);
+        const errorMap = {
+            400: 'Oops! The information provided seems incorrect. Please check and try again.',
+            401: 'Your session has expired. Please log in again to continue.',
+            403: 'You do not have permission to perform this action.',
+            404: 'We could not find what you were looking for.',
+            409: 'This action conflicts with existing data. It might already exist.',
+            413: 'The file you are trying to upload is too large.',
+            422: 'There was a validation error with your submission. Please check your inputs.',
+            429: 'You are making too many requests. Please slow down and try again in a moment.',
+            500: 'Our servers are experiencing technical difficulties. Please try again later.',
+            503: 'The service is temporarily unavailable. Please try again later.',
+        };
+
+        // Try to use a friendly message. If the backend sent a raw error code or technical message, use the fallback map.
+        let friendlyMessage = data?.message || '';
+        const isTechnical = friendlyMessage.toLowerCase().includes('mongo') || friendlyMessage.toLowerCase().includes('duplicate') || friendlyMessage.toLowerCase().includes('error:') || !friendlyMessage;
+        
+        if (isTechnical && errorMap[res.status]) {
+            friendlyMessage = errorMap[res.status];
+        } else if (!friendlyMessage) {
+            friendlyMessage = 'Something went wrong. Please try again later.';
+        }
+
+        const err = new Error(friendlyMessage);
         err.status = res.status;
         err.data = data;
         throw err;

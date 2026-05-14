@@ -202,6 +202,26 @@ const updateJob = async (req, res) => {
             return res.status(404).json({ error: 'Not Found', message: 'Job not found' });
         }
 
+        // ── Backend Logic: Enforce Fake Credential Check Before Completion ──
+        if (status === 'completed' && job.sourceRequest) {
+            const Request = require('../models/Request');
+            const User = require('../models/authmodel');
+            const sourceReq = await Request.findById(job.sourceRequest);
+            if (sourceReq && sourceReq.resident) {
+                const resident = await User.findById(sourceReq.resident);
+                if (resident) {
+                    const isHermata = resident.address?.toLowerCase().includes('hermata merkato') || resident.address?.toLowerCase().includes('hermata');
+                    const hasHMKId = resident.nationalId?.toUpperCase().startsWith('HMK');
+                    if (!isHermata && !hasHMKId && !resident.idCardPhoto) {
+                        return res.status(400).json({ 
+                            error: 'Verification Required', 
+                            message: 'Cannot approve: Resident address/ID is outside Hermata Merkato Kebele and no ID Card Photo was uploaded for verification.' 
+                        });
+                    }
+                }
+            }
+        }
+
         // Employees can only update status and completion notes
         if (req.user.role === 'employee') {
             if (job.assignedTo?.toString() !== req.user.id) {

@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
 import { Download, Award, Shield, CheckCircle, Calendar, Hash, User } from 'lucide-react';
+import { getFileUrl } from '../../utils/api';
 
 // ── Field configs per document type ──────────────────────────────────────────
 const FIELD_MAP = {
@@ -113,10 +114,7 @@ const sigStyle = {
 
 // ── Photo Component (shows actual image or placeholder) ──────────────────────
 const CertPhoto = ({ src, label }) => {
-  // Resolve image source: Cloudinary URLs pass through, local filenames get /api/uploads/ prefix
-  const imgSrc = src
-    ? (src.startsWith('http') ? src : `/api/uploads/${src.replace(/^.*?uploads[\\/]/, '')}`)
-    : null;
+  const imgSrc = getFileUrl(src);
   return (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
     <div style={{

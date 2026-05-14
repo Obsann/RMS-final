@@ -46,13 +46,12 @@ export default function DashboardLayout({ children }) {
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [displayName, setDisplayName] = useState('');
 
-  // Resolve photo URL: handles Cloudinary URLs, /api/uploads/ paths, and bare filenames
+  // Resolve photo URL: handles Cloudinary URLs, /uploads/ paths, and bare filenames
   const resolvePhotoUrl = (photo) => {
     if (!photo) return null;
     if (photo.startsWith('http')) return photo;
-    if (photo.startsWith('/api/uploads/')) return photo;
     if (photo.startsWith('/uploads/')) return photo;
-    return `/api/uploads/${photo.replace(/^.*?uploads[\\/]/, '')}`;
+    return `/uploads/${photo.replace(/^.*?uploads[\\/]/, '')}`;
   };
 
   // Fetch real unread notification count + profile photo from API
@@ -99,9 +98,7 @@ export default function DashboardLayout({ children }) {
     { labelKey: 'dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/admin/dashboard' },
     { labelKey: 'residents', icon: <Users className="w-5 h-5" />, path: '/admin/residents' },
     { labelKey: 'employees', icon: <UserCog className="w-5 h-5" />, path: '/admin/employees' },
-    { labelKey: 'requestsComplaints', icon: <MessageSquare className="w-5 h-5" />, path: '/admin/requests' },
-    { labelKey: 'Service Pipeline', icon: <GitBranch className="w-5 h-5" />, path: '/admin/service-pipeline' },
-    { labelKey: 'digitalIdSystem', icon: <IdCard className="w-5 h-5" />, path: '/admin/digital-id' },
+    { labelKey: 'Services & Operations', icon: <Building2 className="w-5 h-5" />, path: '/admin/services' },
     { labelKey: 'notifications', icon: <Bell className="w-5 h-5" />, path: '/admin/notifications' },
     { labelKey: 'reports', icon: <FileText className="w-5 h-5" />, path: '/admin/reports' },
   ];

@@ -81,7 +81,7 @@ export default function EmployeeProfile() {
             if (!userId) { toast.error('Cannot identify user — please refresh'); setSaving(false); return; }
             const payload = new FormData();
             const textFields = [
-                'username', 'phone', 'address', 'dateOfBirth', 'sex', 'nationality',
+                'username', 'email', 'phone', 'address', 'dateOfBirth', 'sex', 'nationality',
                 'maritalStatus', 'nationalId', 'employeeId', 'educationLevel',
                 'fieldOfStudy', 'officeLocation', 'supervisorName', 'employmentStartDate'
             ];
@@ -236,8 +236,9 @@ export default function EmployeeProfile() {
                         {/* ── SECTION 2: Contact ── */}
                         <ProfileSection title="Contact & Address" icon={<MapPin className="w-4 h-4 text-teal-600" />}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormRow label="Official Email" editMode={false}>
-                                    <ReadValue suffix="(Read-only)">{profile?.email}</ReadValue>
+                                <FormRow label="Official Email" editMode={editMode}>
+                                    <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className={INPUT} placeholder="your.email@example.com" />
+                                    <ReadValue>{profile?.email}</ReadValue>
                                 </FormRow>
                                 <FormRow label="Phone Number" editMode={editMode}>
                                     <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className={INPUT} placeholder="+251 9XX XXX XXX" />

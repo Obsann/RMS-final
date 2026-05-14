@@ -450,9 +450,7 @@ const requestPasswordReset = async (req, res) => {
     // In a production system, this token would be sent via email.
     // For now, we return it in the response for development/demo purposes.
     res.json({
-      message: "If an account with that email exists, a reset token has been generated",
-      // DEV ONLY: Remove the token from response in production
-      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+      message: "If an account with that email exists, a reset token has been generated"
     });
   } catch (err) {
     logger.error("RequestPasswordReset error:", err);

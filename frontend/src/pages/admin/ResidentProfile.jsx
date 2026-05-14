@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getUserById, updateUserStatus } from '../../utils/api';
+import { getUserById, updateUserStatus, getFileUrl } from '../../utils/api';
 
 export default function AdminResidentProfile() {
   const navigate = useNavigate();
@@ -104,7 +104,7 @@ export default function AdminResidentProfile() {
           <div className="flex items-start gap-6">
             <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
               {resident.profilePhoto ? (
-                <img src={`http://localhost:5000${resident.profilePhoto}`} alt="Profile" className="w-full h-full object-cover" />
+                <img src={getFileUrl(resident.profilePhoto)} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-blue-600 text-3xl font-medium">{(resident.username || 'R').charAt(0).toUpperCase()}</span>
               )}
@@ -117,6 +117,19 @@ export default function AdminResidentProfile() {
                 <div className="flex items-center gap-2"><Home className="w-4 h-4 text-gray-400" />Unit: {resident.unit || '—'}</div>
                 <div className="flex items-center gap-2"><Users className="w-4 h-4 text-gray-400" />{resident.dependents?.length || 0} Dependents</div>
               </div>
+              
+              {/* Fake Credential Verification Banner */}
+              {(!resident.nationalId?.toUpperCase().startsWith('HMK') && !resident.address?.toLowerCase().includes('hermata')) && (
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Potential Out-of-Kebele Resident</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      This resident's address or ID does not explicitly match Hermata Merkato. Please carefully verify their uploaded ID Card below.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -143,8 +156,9 @@ export default function AdminResidentProfile() {
           <div className="p-6">
             {/* Personal Information */}
             {activeTab === 'personal' && (
-              <div className="grid sm:grid-cols-2 gap-6">
-                <InfoItem icon={<Users className="w-4 h-4" />} label="Full Name" value={resident.username} />
+              <>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <InfoItem icon={<Users className="w-4 h-4" />} label="Full Name" value={resident.username} />
                 <InfoItem icon={<Mail className="w-4 h-4" />} label="Email Address" value={resident.email} />
                 <InfoItem icon={<Phone className="w-4 h-4" />} label="Phone Number" value={resident.phone} />
                 <InfoItem icon={<Home className="w-4 h-4" />} label="Unit Number" value={resident.unit} />
@@ -160,7 +174,39 @@ export default function AdminResidentProfile() {
                 <InfoItem icon={<ShieldCheck className="w-4 h-4" />} label="Digital ID Status"
                   value={resident.digitalId?.status || 'None'} />
               </div>
-            )}
+              
+              {/* ID Verification Section */}
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600" /> Identity Verification
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Kebele ID Number</p>
+                    <p className="font-medium text-gray-900">{resident.nationalId || 'Not provided'}</p>
+                    {resident.nationalId && !resident.nationalId.toUpperCase().startsWith('HMK') && (
+                      <span className="inline-flex mt-1 items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
+                        <AlertCircle className="w-3 h-3" /> Non-Standard ID Format
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">ID Card Photo Document</p>
+                    {resident.idCardPhoto ? (
+                      <a href={getFileUrl(resident.idCardPhoto)} target="_blank" rel="noopener noreferrer" className="block relative w-40 h-24 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-500 transition-colors group">
+                        <img src={getFileUrl(resident.idCardPhoto)} alt="ID Card" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">Click to view</span>
+                        </div>
+                      </a>
+                    ) : (
+                      <p className="text-sm text-red-600 italic">No ID photo uploaded</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
             {/* Dependents */}
             {activeTab === 'dependents' && (

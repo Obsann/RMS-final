@@ -89,6 +89,9 @@ const userSchema = new mongoose.Schema(
     birthCertificate: {
       type: String
     },
+    idCardPhoto: {
+      type: String
+    },
     documents: [{
       type: {
         type: String,

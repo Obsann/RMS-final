@@ -70,6 +70,7 @@ export default function DocumentUpload({ value = [], onChange, maxSize, accepted
           originalName: file.name,
           size: file.size,
           type: file.type,
+          url: result.file?.url || null,
           preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
         };
       }));

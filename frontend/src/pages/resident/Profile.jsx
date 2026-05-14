@@ -141,6 +141,7 @@ export default function ResidentProfile() {
           nationality: userData.nationality || 'Ethiopian',
           unit: userData.unit || '',
           address: userData.address || '',
+          nationalId: userData.nationalId || '',
           emergencyContact: userData.emergencyContact
             ? (typeof userData.emergencyContact === 'object'
               ? userData.emergencyContact.phone || ''
@@ -172,6 +173,15 @@ export default function ResidentProfile() {
     if (!editFormData.address?.trim()) errs.address = 'Address is required';
     if (!editFormData.nationality?.trim()) errs.nationality = 'Nationality is required';
     if (!editFormData.unit?.trim()) errs.unit = 'Unit is required';
+    if (!editFormData.nationalId?.trim()) errs.nationalId = 'Kebele ID number is required';
+    
+    // False credentials check
+    const isHermata = editFormData.address?.toLowerCase().includes('hermata merkato') || editFormData.address?.toLowerCase().includes('hermata');
+    const hasHMKId = editFormData.nationalId?.toUpperCase().startsWith('HMK');
+    if (!isHermata && !hasHMKId && !user?.idCardPhoto) {
+      errs.nationalId = 'Address is outside Hermata Merkato Kebele or ID is unrecognized. You must upload your Kebele ID Photo below to verify your credentials.';
+    }
+    
     return errs;
   };
 
@@ -189,6 +199,7 @@ export default function ResidentProfile() {
         nationality: editFormData.nationality,
         unit: editFormData.unit,
         address: editFormData.address,
+        nationalId: editFormData.nationalId,
         emergencyContact: editFormData.emergencyContact
           ? { phone: editFormData.emergencyContact }
           : undefined,
@@ -237,7 +248,7 @@ export default function ResidentProfile() {
       if (!uploadRes.ok) throw new Error(uploadData.message || 'Upload failed');
 
       // Use Cloudinary URL directly if available, else fallback to API download route
-      const photoPath = uploadData.file.url || `/api/uploads/${uploadData.file.filename}`;
+      const photoPath = uploadData.file.url || `/uploads/${uploadData.file.filename}`;
       await updateUser(user.id || user._id, { profilePhoto: photoPath });
       // Update local state immediately so photo renders right away
       setUser(prev => ({ ...prev, profilePhoto: photoPath }));
@@ -250,6 +261,42 @@ export default function ResidentProfile() {
     } finally {
       setPhotoUploading(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const idPhotoInputRef = useRef(null);
+  const [idPhotoUploading, setIdPhotoUploading] = useState(false);
+
+  const handleIdPhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    setIdPhotoUploading(true);
+    try {
+      const token = localStorage.getItem('rms_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch('/api/uploads', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'x-upload-type': 'id-card-photo'
+        },
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.message || 'Upload failed');
+
+      const photoPath = uploadData.file.url || `/uploads/${uploadData.file.filename}`;
+      await updateUser(user.id || user._id, { idCardPhoto: photoPath });
+      setUser(prev => ({ ...prev, idCardPhoto: photoPath }));
+      toast.success('Kebele ID photo uploaded successfully!');
+      fetchProfile();
+    } catch (err) {
+      toast.error(err.message || 'Failed to upload ID photo');
+    } finally {
+      setIdPhotoUploading(false);
+      if (idPhotoInputRef.current) idPhotoInputRef.current.value = '';
     }
   };
 
@@ -428,6 +475,51 @@ export default function ResidentProfile() {
 
           {/* Right Column: Unit Info + Household Members */}
           <div className="md:col-span-2 space-y-6">
+            
+            {/* Kebele ID Verification */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <IdCard className="w-5 h-5 text-blue-600" /> Kebele ID Verification
+                </h2>
+              </div>
+              <div className="p-6 grid sm:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Kebele ID Number</p>
+                  <p className="font-medium text-gray-900">{user.nationalId || '—'}</p>
+                  {user.nationalId && !user.nationalId.toUpperCase().startsWith('HMK') && (
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Unrecognized ID Format</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">ID Card Photo</p>
+                  {user.idCardPhoto ? (
+                    <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group" onClick={() => !idPhotoUploading && idPhotoInputRef.current?.click()}>
+                      <img src={getFileUrl(user.idCardPhoto)} alt="ID Card" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Edit2 className="w-5 h-5 text-white" />
+                      </div>
+                      {idPhotoUploading && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => idPhotoInputRef.current?.click()}
+                      disabled={idPhotoUploading}
+                      className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+                    >
+                      {idPhotoUploading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Camera className="w-4 h-4" />}
+                      Upload ID Photo
+                    </button>
+                  )}
+                  <input ref={idPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleIdPhotoChange} />
+                </div>
+              </div>
+            </div>
+
             {/* Unit Information */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
@@ -603,6 +695,17 @@ export default function ResidentProfile() {
             </label>
             <input type="text" disabled value={getMemberSinceDate(user).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               className="w-full px-4 py-2.5 border border-gray-200 bg-gray-50 rounded-xl text-sm text-gray-500 cursor-not-allowed" />
+          </div>
+
+          {/* Kebele ID */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+              <IdCard className="w-3.5 h-3.5" /> Kebele ID Number <span className="text-red-500">*</span>
+            </label>
+            <input type="text" value={editFormData.nationalId || ''} onChange={setEdit('nationalId')}
+              className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors ${editErrors.nationalId ? 'border-red-400 bg-red-50' : 'border-gray-300 focus:ring-blue-100 focus:border-blue-500'}`}
+              placeholder="E.g., HMK-12345" />
+            {editErrors.nationalId && <p className="mt-1 text-xs text-red-600">⚠ {editErrors.nationalId}</p>}
           </div>
 
           {/* Emergency Contact */}

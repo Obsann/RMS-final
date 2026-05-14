@@ -1,3 +1,4 @@
+// @ts-check
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -8,7 +9,7 @@ const session = require('express-session');
 
 dotenv.config();
 
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'SESSION_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
   console.error('FATAL: Missing required environment variables:', missingEnvVars.join(', '));
@@ -34,6 +35,8 @@ const { createAuditLog } = require('./middleware/auditMiddleware');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const compression = require('compression');
+app.use(compression());
 app.use(helmet());
 
 const corsOptions = {
@@ -44,8 +47,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json({ limit: '16mb' }));
-app.use(express.urlencoded({ extended: true, limit: '16mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 app.use((req, res, next) => {
   if (req.body) {
@@ -57,11 +60,15 @@ app.use((req, res, next) => {
   next();
 });
 
+app.set('trust proxy', 1);
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback-session-secret',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 60000 }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', 
+    maxAge: 60000 
+  }
 }));
 
 app.use(passport.initialize());
@@ -120,7 +127,18 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.path} not found` });
 });
 
-app.use((err, req, res, next) => {
+/**
+ * @typedef {Object} CustomError
+ * @property {boolean} [isOperational]
+ * @property {string} [errorType]
+ * @property {string} message
+ * @property {number} [statusCode]
+ * @property {number} [status]
+ * @property {string} [name]
+ * @property {string} [stack]
+ */
+
+app.use((/** @type {CustomError} */ err, req, res, next) => {
   const logger = require('./config/logger');
   if (err.isOperational) {
     logger.warn(`${err.errorType}: ${err.message}`, { statusCode: err.statusCode, path: req.path });

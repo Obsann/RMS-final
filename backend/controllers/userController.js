@@ -153,11 +153,11 @@ const updateUser = async (req, res) => {
 
     // Whitelist allowed fields based on role
     const userAllowedFields = [
-      'username', 'phone', 'unit', 'address', 'profilePhoto',
+      'username', 'email', 'phone', 'unit', 'address', 'profilePhoto',
       'dateOfBirth', 'sex', 'nationality', 'emergencyContact',
       'maritalStatus', 'educationLevel', 'fieldOfStudy',
       'employmentStartDate', 'officeLocation', 'supervisorName',
-      'nationalId', 'employeeId',
+      'nationalId', 'employeeId', 'idCardPhoto'
     ];
     const adminAllowedFields = [
       ...userAllowedFields,

@@ -109,17 +109,7 @@ export default function AdminResidents() {
     }
   };
 
-  // Toggle status
-  const handleToggleStatus = async (resident) => {
-    const newStatus = resident.status === 'approved' ? 'rejected' : 'approved';
-    try {
-      await updateUser(resident._id, { status: newStatus });
-      toast.success(`Resident ${newStatus === 'approved' ? 'approved' : 'deactivated'}`);
-      fetchResidents();
-    } catch (error) {
-      toast.error(error.message || 'Failed to update status');
-    }
-  };
+
 
   const filtered = residents.filter(r => {
     const matchSearch = (r.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -196,7 +186,6 @@ export default function AdminResidents() {
                   <th className="px-6 py-3 text-left text-gray-600">Name</th>
                   <th className="px-6 py-3 text-left text-gray-600">Unit</th>
                   <th className="px-6 py-3 text-left text-gray-600">Phone</th>
-                  <th className="px-6 py-3 text-left text-gray-600">Active</th>
                   <th className="px-6 py-3 text-left text-gray-600">Digital ID</th>
                   <th className="px-6 py-3 text-left text-gray-600">Actions</th>
                 </tr>
@@ -217,15 +206,7 @@ export default function AdminResidents() {
                     </td>
                     <td className="px-6 py-4 text-gray-700">{r.unit || '—'}</td>
                     <td className="px-6 py-4 text-gray-600">{r.phone || '—'}</td>
-                    <td className="px-6 py-4">
-                      {/* Toggle Switch */}
-                      <button
-                        onClick={() => handleToggleStatus(r)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${r.status === 'approved' ? 'bg-green-500' : 'bg-gray-300'}`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${r.status === 'approved' ? 'translate-x-6' : 'translate-x-1'}`} />
-                      </button>
-                    </td>
+
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-sm capitalize ${idStatusColors[r.digitalId?.status || 'none']}`}>
                         <IdCard className="w-3.5 h-3.5" />
@@ -439,20 +420,7 @@ export default function AdminResidents() {
             </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 border-b pb-2">Account Status</h3>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setEditData({ ...editData, status: editData.status === 'approved' ? 'rejected' : 'approved' })}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editData.status === 'approved' ? 'bg-green-500' : 'bg-gray-300'}`}
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow ${editData.status === 'approved' ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-              <span className={`text-sm font-medium ${editData.status === 'approved' ? 'text-green-700' : 'text-gray-500'}`}>
-                {editData.status === 'approved' ? 'Active (Approved)' : 'Inactive (Rejected)'}
-              </span>
-            </div>
-          </div>
+
 
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button onClick={handleSaveEdit} disabled={submitting} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{submitting ? 'Saving...' : 'Save Changes'}</button>

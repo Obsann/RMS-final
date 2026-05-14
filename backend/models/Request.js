@@ -58,6 +58,7 @@ const requestSchema = new mongoose.Schema(
         attachments: [{
             filename: String,
             originalName: String,
+            url: String,
             uploadedAt: { type: Date, default: Date.now }
         }],
         // Response/Resolution

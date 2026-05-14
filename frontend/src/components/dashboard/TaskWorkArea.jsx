@@ -6,7 +6,7 @@ import {
   Search, Filter, Calendar, Hash, User, Phone, MapPin,
 } from 'lucide-react';
 import WorkflowStepper from './WorkflowStepper';
-import { api } from '../../utils/api';
+import { api, getFileUrl } from '../../utils/api';
 import { toast } from 'sonner';
 
 // ── Auto-save helper ─────────────────────────────────────────────────────────
@@ -68,11 +68,17 @@ function ActionConsole({ item, onAction, submitting }) {
   const [showReject, setShowReject] = useState(false);
   if (!item) return null;
   const isDone = item.status === 'completed' || item.status === 'approved' || item.status === 'resolved';
+  const isRejected = item.status === 'cancelled' || item.status === 'rejected';
+  
   return (
     <div className="border-t border-gray-200 bg-gray-50 p-4 rounded-b-2xl">
       {isDone ? (
         <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle className="w-5 h-5" /><span className="text-sm font-semibold">This item has been resolved</span>
+          <CheckCircle className="w-5 h-5" /><span className="text-sm font-semibold">This item has been approved and resolved</span>
+        </div>
+      ) : isRejected ? (
+        <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <XCircle className="w-5 h-5" /><span className="text-sm font-semibold">This item has been rejected</span>
         </div>
       ) : showReject ? (
         <div className="space-y-2">
@@ -120,17 +126,18 @@ function AttachmentGallery({ attachments }) {
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {attachments.map((a, i) => {
-          const isImage = a.originalName?.match(/\.(jpg|jpeg|png|gif)$/i);
+          const isImage = a.originalName?.match(/\.(jpg|jpeg|png|gif)$/i) || a.filename?.match(/\.(jpg|jpeg|png|gif)$/i) || (a.url && a.url.match(/\.(jpg|jpeg|png|gif)$/i));
+          const linkHref = a.url || getFileUrl(a.filename) || '#';
           return (
             <a
               key={i}
-              href={`/api/uploads/${a.filename}?token=${localStorage.getItem('rms_token')}`}
+              href={linkHref}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 rounded-lg transition-colors group"
             >
-              <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
-                {isImage ? <Image className="w-5 h-5 text-indigo-500" /> : <FileText className="w-5 h-5 text-indigo-500" />}
+              <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100 overflow-hidden">
+                {isImage ? <img src={linkHref} alt="preview" className="w-full h-full object-cover" /> : <FileText className="w-5 h-5 text-indigo-500" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-indigo-700">
@@ -372,14 +379,39 @@ function FormDataPanel({ formData, serviceType }) {
         {serviceType ? `${serviceType} — Submitted Details` : 'Submitted Form Data'}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {entries.map(([key, val]) => (
-          <div key={key} className="p-2 bg-white rounded-lg border border-indigo-100">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-              {key.replace(/([A-Z])/g, ' $1').trim()}
-            </span>
-            <p className="text-sm font-medium text-gray-900 mt-0.5">{String(val)}</p>
-          </div>
-        ))}
+        {entries.map(([key, val]) => {
+          const isCloudinaryUrl = typeof val === 'string' && val.includes('res.cloudinary.com/');
+          const isPdf = typeof val === 'string' && val.match(/\.pdf$/i);
+          const isImageUrl = typeof val === 'string' && (val.match(/\.(jpeg|jpg|gif|png|webp)$/i) || (isCloudinaryUrl && !isPdf));
+          const isDocumentUrl = isCloudinaryUrl || isPdf;
+          
+          const finalValUrl = isDocumentUrl ? (val.startsWith('http') ? val : getFileUrl(val)) : null;
+
+          return (
+            <div key={key} className="p-2 bg-white rounded-lg border border-indigo-100">
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider mb-1 block">
+                {key.replace(/([A-Z])/g, ' $1').trim()}
+              </span>
+              {isImageUrl ? (
+                <a href={finalValUrl} target="_blank" rel="noopener noreferrer" className="block mt-1.5 overflow-hidden rounded border border-gray-200 hover:border-blue-400 transition-colors shadow-sm bg-gray-50">
+                  <img src={finalValUrl} alt={key} className="w-full h-32 object-cover hover:scale-105 transition-transform duration-300" />
+                </a>
+              ) : isDocumentUrl ? (
+                <a href={finalValUrl} target="_blank" rel="noopener noreferrer" className="mt-1.5 flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors group">
+                  <div className="w-8 h-8 rounded bg-white flex items-center justify-center border border-gray-200 shrink-0 shadow-sm">
+                    <FileText className="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-semibold text-gray-700 truncate group-hover:text-indigo-700">View Document</span>
+                    <span className="block text-[10px] text-gray-500 truncate">PDF File</span>
+                  </div>
+                </a>
+              ) : (
+                <p className="text-sm font-medium text-gray-900 mt-0.5">{String(val)}</p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

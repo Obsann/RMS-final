@@ -6,6 +6,8 @@ const nodemailer = require('nodemailer');
  */
 const sendEmail = async ({ to, subject, html }) => {
   try {
+
+
     // We default to Gmail settings, but they can be overridden in .env
     const transporter = nodemailer.createTransport({
       service: process.env.SMTP_SERVICE || 'gmail',

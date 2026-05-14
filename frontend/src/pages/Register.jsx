@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, User, Mail, Lock, AtSign,
-  ChevronRight, ChevronLeft, CheckCircle, Eye, EyeOff
+  ChevronRight, ChevronLeft, CheckCircle, Eye, EyeOff, Shield, Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -160,29 +160,75 @@ export default function Register() {
   const slideInClass = direction === 'forward' ? 'animate-in slide-in-from-right-8 fade-in duration-300' : 'animate-in slide-in-from-left-8 fade-in duration-300';
 
   return (
-    <div className="min-w-screen min-h-screen bg-gray-50 flex flex-col relative overflow-hidden">
-      {/* Header controls */}
-      <div className="relative z-10 flex justify-between items-center px-6 pt-6">
-        <button onClick={() => navigate('/')} className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors font-medium">
-          <ChevronLeft className="w-4 h-4" /> Back to Home
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Translate widget */}
+      <div className="absolute top-4 right-4 z-50">
         <TranslateWidget />
       </div>
 
-      <div className="relative z-10 flex-1 flex items-start justify-center py-8 px-4">
-        <div className="w-full max-w-lg">
-          {/* Logo + Title */}
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
+      {/* Animated background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] bg-indigo-400/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-0 relative z-10 shadow-2xl rounded-3xl overflow-hidden bg-white">
+
+        {/* ── Left Panel: Branding ── */}
+        <div className="hidden lg:flex flex-col justify-center p-12 bg-gradient-to-br from-blue-600 to-indigo-800 text-white relative">
+          <div className="absolute inset-0 opacity-[0.06]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20 shadow-xl">
+              <Building2 className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold mb-4 tracking-tight">Kebele RMS</h1>
+            <p className="text-blue-100 text-lg leading-relaxed mb-8">
+              Join the Hermata Merkato Kebele Community.
+              Register to access digital services, request vital documents, and track your applications.
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+                <Shield className="w-6 h-6 text-blue-200 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold">Secure OTP Verification</h3>
+                  <p className="text-sm text-blue-200">Your account is protected by email verification</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+                <Users className="w-6 h-6 text-blue-200 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold">Unified Access</h3>
+                  <p className="text-sm text-blue-200">One account for all kebele services</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right Panel: Form ── */}
+        <div className="p-8 lg:p-12 relative bg-white flex flex-col justify-center">
+          
+          <button onClick={() => navigate('/login')} className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Back to Login
+          </button>
+
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center justify-center mb-6 mt-8">
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
               <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Create Resident Account</h1>
+          </div>
+
+          <div className="text-left mb-8 mt-6 lg:mt-0">
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Create Account</h2>
             <p className="text-gray-500 mt-2 text-sm">Join the Kebele Community System</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="p-8">
-              
+          <div className="w-full max-w-md mx-auto">
               {/* ── STEP 1: Account Details ────────────────────────────── */}
               {step === 1 && (
                 <div className={`space-y-5 ${slideInClass}`}>
@@ -324,15 +370,6 @@ export default function Register() {
                 </div>
               )}
 
-            </div>
-            
-            {/* Sign in link footer */}
-            <div className="bg-gray-50 border-t border-gray-100 p-5 text-center">
-              <p className="text-sm text-gray-500 font-medium">
-                Already have an account?{' '}
-                <button onClick={() => navigate('/login')} className="text-blue-600 hover:text-blue-700 hover:underline">Sign in</button>
-              </p>
-            </div>
           </div>
         </div>
       </div>

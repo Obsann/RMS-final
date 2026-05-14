@@ -101,8 +101,10 @@ export default function EmployeeWorkspace() {
       const jobs = data?.jobs || [];
       setAllJobs(jobs);
 
-      // Normalize jobs into queue items
-      const items = jobs.map(normalizeJobToQueueItem);
+      // Normalize active jobs into queue items (excluding completed/cancelled)
+      const items = jobs
+        .filter(job => job.status !== 'completed' && job.status !== 'cancelled')
+        .map(normalizeJobToQueueItem);
       setQueueItems(items);
     } catch (err) {
       toast.error('Failed to load queue data');

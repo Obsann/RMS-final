@@ -67,10 +67,14 @@ if (hasCloudinary) {
     cloudinary: cloudinary,
     params: async (req, file) => {
       const folder = resolveFolder(req, file);
+      const ext = path.extname(file.originalname);
+      const baseName = path.basename(file.originalname, ext);
+      const isPrivate = folder === 'rms/identity-registration' || folder === 'rms/certificates';
       return {
         folder,
         resource_type: 'auto', // Required for non-image files like PDF
-        public_id: `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
+        type: isPrivate ? 'private' : 'upload',
+        public_id: `${Date.now()}-${baseName.replace(/[^a-zA-Z0-9.-]/g, '_')}`,
       };
     }
   });

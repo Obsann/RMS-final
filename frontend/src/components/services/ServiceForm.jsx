@@ -134,6 +134,7 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
       attachments: atts.map(a => ({
         filename: a.filename,
         originalName: a.originalName,
+        url: a.url,
       })),
     };
 
@@ -362,7 +363,7 @@ export default function ServiceForm({ serviceId, onBack, onSuccess }) {
                                   const { getMeAPI, updateUser } = await import('../../utils/api');
                                   const meRes = await getMeAPI();
                                   const me = meRes.user || meRes;
-                                  const photoPath = uploadedFile.url || `/api/uploads/${uploadedFile.filename}`;
+                                  const photoPath = uploadedFile.url || `/uploads/${uploadedFile.filename}`;
                                   await updateUser(me.id || me._id, { profilePhoto: photoPath });
                                 } catch (_) { /* silent — profile sync is best-effort */ }
                               }

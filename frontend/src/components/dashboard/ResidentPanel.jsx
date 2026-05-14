@@ -3,7 +3,9 @@ import {
   User, Phone, MapPin, Mail, Calendar, Shield, Hash,
   Clock, CheckCircle, AlertTriangle, FileText, MessageSquare,
   ChevronRight, ExternalLink, Activity, BarChart2, Loader2, Home,
+  AlertCircle
 } from 'lucide-react';
+import { getFileUrl } from '../../utils/api';
 
 function DataCompleteness({ profile }) {
   const fields = ['username', 'email', 'phone', 'address', 'sex', 'dateOfBirth', 'unit', 'nationalId'];
@@ -164,6 +166,38 @@ export default function ResidentPanel({ resident, requestHistory = [], loading }
                 <InfoRow icon={User} label="Sex" value={resident.sex} />
                 <InfoRow icon={Calendar} label="Registered" value={resident.createdAt ? new Date(resident.createdAt).toLocaleDateString() : null} />
                 <InfoRow icon={Hash} label="National ID" value={resident.nationalId} />
+              </div>
+
+              {/* ID Verification & Fake Credential Banner */}
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                {(!resident.nationalId?.toUpperCase().startsWith('HMK') && !resident.address?.toLowerCase().includes('hermata')) && (
+                  <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-bold text-amber-800 uppercase">Verification Required</p>
+                      <p className="text-[10px] text-amber-700 leading-tight mt-0.5">
+                        Address or ID outside Hermata Merkato Kebele. Please check the ID Card Photo.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {resident.idCardPhoto ? (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">ID Card Photo Document</p>
+                    <a href={getFileUrl(resident.idCardPhoto)} target="_blank" rel="noopener noreferrer" className="block relative w-full h-24 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-500 transition-colors group">
+                      <img src={getFileUrl(resident.idCardPhoto)} alt="ID Card" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">Click to view</span>
+                      </div>
+                    </a>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-3 text-center">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">ID Card Photo Document</p>
+                    <p className="text-xs text-red-500 italic">No ID photo uploaded</p>
+                  </div>
+                )}
               </div>
 
               {/* Dependents */}

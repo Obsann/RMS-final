@@ -4,7 +4,7 @@ import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { IdCard, Eye, Clock, Loader2, XCircle, AlertCircle, FileText, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDigitalIds, revokeDigitalId, getFileUrl } from '../../utils/api';
+import { getDigitalIds, revokeDigitalId, getFileUrl, api } from '../../utils/api';
 
 const IN_REVIEW_STATUSES = ['verified', 'processing'];
 const ACTIVE_ID_STATUSES = ['approved', 'issued'];
@@ -44,6 +44,27 @@ export default function AdminDigitalID() {
   const closeRejectModal = () => {
     setShowRejectModal(false);
     setRejectReason('');
+  };
+
+  const handleToggleIDStatus = async (request) => {
+    if (request.status === 'issued') {
+       setSelectedRequest(request);
+       setShowRejectModal(true);
+    } else if (request.status === 'revoked') {
+       setSubmitting(true);
+       try {
+         await api(`/digital-id/${request._id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: 'issued' })
+         });
+         toast.success('Digital ID restored successfully.');
+         fetchData();
+       } catch(error) {
+         toast.error(error.message || 'Failed to restore ID');
+       } finally {
+         setSubmitting(false);
+       }
+    }
   };
 
   const handleReject = async (event) => {
@@ -184,7 +205,7 @@ export default function AdminDigitalID() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          {request.status !== 'revoked' && request.status !== 'expired' && (
+                          {request.status !== 'revoked' && request.status !== 'expired' && request.status !== 'issued' && (
                             <button
                               disabled={submitting}
                               onClick={() => { setSelectedRequest(request); setShowRejectModal(true); }}
@@ -193,6 +214,16 @@ export default function AdminDigitalID() {
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               {request.status === 'pending' ? 'Reject' : 'Revoke'}
+                            </button>
+                          )}
+                          {(request.status === 'issued' || request.status === 'revoked') && (
+                            <button
+                              disabled={submitting}
+                              onClick={() => handleToggleIDStatus(request)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${request.status === 'issued' ? 'bg-green-500' : 'bg-gray-300'}`}
+                              title={request.status === 'issued' ? 'Active - Click to Revoke' : 'Revoked - Click to Restore'}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${request.status === 'issued' ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
                           )}
                           {request.status === 'pending' && (
@@ -275,13 +306,31 @@ export default function AdminDigitalID() {
             )}
 
             <div className="flex gap-3 pt-4 border-t border-gray-100">
-              {selectedRequest.status !== 'revoked' && selectedRequest.status !== 'expired' && (
+              {selectedRequest.status !== 'revoked' && selectedRequest.status !== 'expired' && selectedRequest.status !== 'issued' && (
                 <button
                   disabled={submitting}
                   onClick={() => setShowRejectModal(true)}
                   className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors"
                 >
                   {selectedRequest.status === 'pending' ? 'Reject Application' : 'Revoke Digital ID'}
+                </button>
+              )}
+              {selectedRequest.status === 'issued' && (
+                <button
+                  disabled={submitting}
+                  onClick={() => setShowRejectModal(true)}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 transition-colors"
+                >
+                  Revoke Digital ID
+                </button>
+              )}
+              {selectedRequest.status === 'revoked' && (
+                <button
+                  disabled={submitting}
+                  onClick={() => handleToggleIDStatus(selectedRequest)}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 transition-colors"
+                >
+                  Restore Digital ID
                 </button>
               )}
               <button
