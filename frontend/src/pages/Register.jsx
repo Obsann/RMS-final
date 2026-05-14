@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, User, Mail, Lock, AtSign,
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
 import { registerAPI, getGoogleOAuthURL, sendOtpAPI, verifyOtpAPI } from '../utils/api';
 import TranslateWidget from '../components/TranslateWidget';
+import { AuthContext } from '../App';
 
 // ── Field validation helper ────────────────────────────────────────────────
 const validateStep1 = (d) => {
@@ -53,6 +54,7 @@ const inputCls = (err) =>
 export default function Register() {
   const navigate = useNavigate();
   const { lang, t } = useLanguage();
+  const { login } = useContext(AuthContext);
   
   // Steps: 1 = Details, 2 = OTP
   const [step, setStep] = useState(1);
@@ -126,8 +128,11 @@ export default function Register() {
         // We omit phone and unit; user will fill them in profile later.
       });
       
-      toast.success('Registration completed successfully!');
-      setRegistered(true);
+      // 3. Auto login and redirect
+      await login(formData.email, formData.password);
+      
+      toast.success('Registration completed successfully! Welcome to the dashboard.');
+      navigate('/resident/dashboard');
     } catch (error) {
       toast.error(error.message || 'Verification or registration failed');
     } finally {
@@ -212,8 +217,8 @@ export default function Register() {
         {/* ── Right Panel: Form ── */}
         <div className="p-8 lg:p-12 relative bg-white flex flex-col justify-center">
           
-          <button onClick={() => navigate('/login')} className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Login
+          <button onClick={() => navigate('/')} className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Home
           </button>
 
           {/* Mobile logo */}
