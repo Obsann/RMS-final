@@ -9,12 +9,24 @@
       <meta property="og:title" content="Resident Management System UI" />
       <meta property="og:description" content="Resident Management System for streamlined identity, certificate, and permit registrations." />
       <meta property="og:type" content="website" />
-      <script type="text/javascript">
-        // Set default language to Afan Oromo if not already set
-        if (document.cookie.indexOf('googtrans') === -1) {
-          document.cookie = 'googtrans=/en/om; path=/';
-          document.cookie = 'googtrans=/en/om; path=/; domain=' + window.location.hostname;
+
+      <!-- Protect numbers, names, dates, emails, and data values from Google Translate -->
+      <style>
+        /* Mark all dynamic data cells, badges, stat values, and inputs as no-translate */
+        input, select, textarea,
+        [data-notranslate],
+        .notranslate,
+        td, th,
+        code, pre, kbd, samp,
+        .stat-value, .badge-text {
+          /* CSS-level hint for Google Translate */
+          translate: no;
         }
+      </style>
+
+      <script type="text/javascript">
+        // Default to English — user can switch via the translate widget
+        // (Do NOT set a googtrans cookie so the page loads in its native English)
 
         function googleTranslateElementInit() {
           new google.translate.TranslateElement({
@@ -23,6 +35,42 @@
             autoDisplay: false
           }, 'google_translate_element');
         }
+
+        // After Google Translate initializes, protect dynamic content from mangling
+        document.addEventListener('DOMContentLoaded', function() {
+          // MutationObserver: automatically add 'notranslate' to elements that
+          // contain pure numbers, emails, dates, or look like proper names
+          var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+              m.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) protectDynamicContent(node);
+              });
+            });
+          });
+          observer.observe(document.getElementById('root') || document.body, {
+            childList: true, subtree: true
+          });
+
+          function protectDynamicContent(el) {
+            // Protect table cells — they often contain names, IDs, numbers
+            var cells = el.querySelectorAll ? el.querySelectorAll('td, .stat-value, [data-notranslate]') : [];
+            cells.forEach(function(cell) {
+              cell.classList.add('notranslate');
+              cell.setAttribute('translate', 'no');
+            });
+
+            // Protect any element whose text is purely numeric (stats, counts, IDs)
+            var allSpans = el.querySelectorAll ? el.querySelectorAll('span, p, h1, h2, h3, h4, div') : [];
+            allSpans.forEach(function(span) {
+              var text = (span.textContent || '').trim();
+              // Pure number or number with common suffixes (%, +, -, ., ,)
+              if (/^[\d,.\-+%\/\s]+$/.test(text) && text.length > 0 && text.length < 20) {
+                span.classList.add('notranslate');
+                span.setAttribute('translate', 'no');
+              }
+            });
+          }
+        });
       </script>
       <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     </head>

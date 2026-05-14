@@ -201,7 +201,7 @@ export default function DashboardLayout({ children }) {
                   className="flex items-center gap-3 pl-3 border-l border-gray-200 hover:bg-gray-50 rounded-lg pr-2 py-1 transition-colors"
                 >
                   <div className="hidden sm:block text-right">
-                    <p className="text-gray-900 text-sm font-medium">{((displayName || user?.username || user?.name || '')).replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                    <p className="text-gray-900 text-sm font-medium notranslate">{((displayName || user?.username || user?.name || '')).replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
                     <p className="text-gray-500 text-xs capitalize">{user?.role?.replace('-', ' ')}</p>
                   </div>
                   <div className="w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden bg-blue-600 flex items-center justify-center flex-shrink-0">
