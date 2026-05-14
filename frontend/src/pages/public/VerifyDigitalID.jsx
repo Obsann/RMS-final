@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Shield, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, MapPin, Calendar, User } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -48,7 +48,10 @@ export default function VerifyDigitalID() {
           </div>
           <h1 className="text-white text-xl font-bold">ID Verification</h1>
           <p className="text-gray-400 text-sm mt-1">Hermata Merkato Kebele · Civil Registration Office</p>
-          <p className="text-gray-500 text-xs">Proclamation No. 1284/2023 · Federal Democratic Republic of Ethiopia</p>
+          <p className="text-gray-500 text-xs mt-1">Proclamation No. 1284/2023 · Federal Democratic Republic of Ethiopia</p>
+          <Link to="/" className="inline-block mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+            ← Return to Homepage
+          </Link>
         </div>
 
         {/* Card */}

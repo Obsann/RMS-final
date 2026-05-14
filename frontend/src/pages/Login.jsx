@@ -144,13 +144,20 @@ export default function Login() {
 
         {/* ── Right Panel: Form ── */}
         <div className="p-8 lg:p-12 relative bg-white">
-          {/* Back button for sub-modes */}
-          {mode !== 'login' && (
+          {/* Back button for sub-modes and home */}
+          {mode !== 'login' ? (
             <button
               onClick={() => { setMode('login'); resetForm(); }}
               className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Back to Login
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/')}
+              className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Home
             </button>
           )}
 

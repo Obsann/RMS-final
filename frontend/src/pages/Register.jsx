@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, User, Mail, Lock, AtSign,
-  ChevronRight, ChevronLeft, CheckCircle, Eye, EyeOff, Shield, Users
+  ChevronRight, ArrowLeft, CheckCircle, Eye, EyeOff, Shield, Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -213,7 +213,7 @@ export default function Register() {
         <div className="p-8 lg:p-12 relative bg-white flex flex-col justify-center">
           
           <button onClick={() => navigate('/login')} className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm font-medium transition-colors">
-            <ChevronLeft className="w-4 h-4" /> Back to Login
+            <ArrowLeft className="w-4 h-4" /> Back to Login
           </button>
 
           {/* Mobile logo */}
@@ -319,7 +319,7 @@ export default function Register() {
                 <div className={`space-y-6 ${slideInClass}`}>
                   <div className="mb-6">
                     <button onClick={handleBack} className="text-gray-400 hover:text-gray-600 transition-colors mb-4 flex items-center text-sm font-medium">
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Back
+                      <ArrowLeft className="w-4 h-4 mr-1" /> Back
                     </button>
                     <h2 className="text-xl font-bold text-gray-900">Verify Email</h2>
                     <p className="text-sm text-gray-500 mt-1">We've sent a 6-digit code to <strong className="text-gray-800">{formData.email}</strong></p>
