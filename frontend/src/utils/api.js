@@ -134,9 +134,11 @@ export function logoutAPI() {
 }
 
 export function getGoogleOAuthURL() {
-    // In development, the Vite proxy handles /api routes,
-    // but for OAuth we need a full redirect to the backend
-    return 'http://localhost:5000/api/auth/google';
+    // In production, VITE_API_URL points to the Render backend,
+    // In development, fall back to the local backend
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const backendBase = apiBase.replace(/\/api\/?$/, '');
+    return backendBase + '/api/auth/google';
 }
 
 // ── Users ───────────────────────────────────────────────────────────────────
