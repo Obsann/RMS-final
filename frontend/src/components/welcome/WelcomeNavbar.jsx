@@ -8,11 +8,9 @@ import {
 import { Globe, ChevronDown, Building2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import TranslateWidget from '../TranslateWidget';
-import { useNavigate } from 'react-router-dom';
 
 export default function WelcomeNavbar() {
   const { lang, setLang } = useLanguage();
-  const navigate = useNavigate();
 
   return (
     <nav className="flex items-center justify-between px-6 py-4 bg-white border-b border-blue-100 sticky top-0 z-50 shadow-sm">
@@ -30,12 +28,8 @@ export default function WelcomeNavbar() {
         </div>
       </div>
 
-      {/* Navigation & Language Selector */}
+      {/* Language Selector */}
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 mr-2">
-          <Button variant="ghost" onClick={() => navigate('/login')} className="text-blue-900 font-semibold hover:bg-blue-50">Login</Button>
-          <Button onClick={() => navigate('/register')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">Register</Button>
-        </div>
         <TranslateWidget />
       </div>
     </nav>

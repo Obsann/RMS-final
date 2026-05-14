@@ -188,7 +188,9 @@ export default function DashboardLayout({ children }) {
               <button className="relative p-2 hover:bg-gray-100 rounded-lg" onClick={() => navigate(`/${user?.role}/notifications`)}>
                 <Bell className="w-6 h-6 text-gray-600" />
                 {bellCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  <span className="absolute top-0 right-0 w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full flex items-center justify-center border border-white">
+                    {bellCount > 9 ? '9+' : bellCount}
+                  </span>
                 )}
               </button>
 
